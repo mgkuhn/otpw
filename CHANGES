@@ -46,3 +46,6 @@ Changes in version 1.4 (2004-03-??)
 
   - new option -k to recreate a password list from a master key generated
     with -m. This does not affect the ~/.otpw file.
+
+  - new options -E and -P to control the entropy and form of the
+    master key generated with -m.
