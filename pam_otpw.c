@@ -12,7 +12,7 @@
  * Inspired by pam_pwdfile.c by Charl P. Botha <cpbotha@ieee.org>
  * and pam_unix/support.c (part of the standard PAM distribution)
  *
- * $Id: pam_otpw.c,v 1.1 2003-06-19 17:41:26 mgk25 Exp $
+ * $Id: pam_otpw.c,v 1.2 2003-06-20 13:58:58 mgk25 Exp $
  */
 
 #include <stdarg.h>
@@ -227,7 +227,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
   
   /* DEBUG */
   D(log_message(LOG_DEBUG, pamh, "username is %s", username));
-  D(log_message(LOG_DEBUG, pamh, "uid=%d, euid=%d", getuid(), geteuid()));
+  D(log_message(LOG_DEBUG, pamh, "uid=%d, euid=%d, gid=%d, egid=%d",
+		getuid(), geteuid(), getgid(), getegid()));
 
   /* consult POSIX password database (to find homedir, etc.) */
   pwd = getpwnam(username);
