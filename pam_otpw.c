@@ -12,7 +12,7 @@
  * Inspired by pam_pwdfile.c by Charl P. Botha <cpbotha@ieee.org>
  * and pam_unix/support.c (part of the standard PAM distribution)
  *
- * $Id: pam_otpw.c,v 1.3 2003-06-24 20:42:43 mgk25 Exp $
+ * $Id: pam_otpw.c,v 1.4 2003-08-31 19:20:17 mgk25 Exp $
  */
 
 #include <stdarg.h>
@@ -272,7 +272,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
   D(log_message(LOG_DEBUG, pamh, "challenge: %s", ch->challenge));
   if (ch->passwords < 1) {
     /* it seems OTPW might not have been set up or has exhausted keys,
-       perhaps explain here in info msg hot to "man newpass" */
+       perhaps explain here in info msg how to "man otpw-gen" */
     log_message(LOG_NOTICE, pamh, "OTPW not set up for user %s", username);
     return PAM_AUTHINFO_UNAVAIL;
   }
@@ -349,7 +349,7 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *pamh, int flags,
     return PAM_SESSION_ERR;
   }
 
-  if (!(flags & PAM_SILENT)) {
+  if (!(flags & PAM_SILENT) && ch->entries >= 0) {
     display_notice(pamh, 0, debug,
 		   "Remaining one-time passwords: %d of %d%s",
 		   ch->remaining, ch->entries,
