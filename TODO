@@ -1,3 +1,2 @@
-- otpw-gen option to generate passwords from a single randomly generated
-  key, which will be printed to stderr
-- otpw-gen option to reprint password list from generating key
+All requested features for OTPW have now been implemented; the
+wishlist is currently empty.

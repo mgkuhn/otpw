@@ -6,7 +6,7 @@
  */
 
 static char const rcsid[] =
-  "$Id: otpw-gen.c,v 1.2 2004-03-21 22:53:52+00 mgk25 Exp $";
+  "$Id: otpw-gen.c,v 1.3 2004-03-28 21:57:41+01 mgk25 Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,11 +30,12 @@ static char const rcsid[] =
 #define MAX_PASSWORDS 1000                /* maximum length of password list */
 #define CHALLEN 3                       /* number of characters in challenge */
 #define HBUFLEN (CHALLEN + OTPW_HLEN + 1)
+#define MASTERKEY_CHECKBITS 4          /* error-detection bits in master key */
 
 /*
  * A list of common English four letter words. It has not been checked
- * particularly well for being free of rude words or trademarks, but
- * that shouldn't be a problem as users should keep them secret anyway.
+ * particularly well for being free of rude words or trademarks; users
+ * are meant to keep them secret anyway.
  */
 
 char word[2048][4] = {
@@ -395,6 +396,32 @@ void conv_base64(char *s, const unsigned char *v, int chars)
   *s++ = '\0';
 }
 
+
+/*
+ * Transform the first 5*chars bits of the binary string v into a chars
+ * character long string s. The encoding uses only lowercase letters
+ * and digit, in order to make it easy to communicate by voice (e.g.,
+ * using the NATO alphabet).
+ */
+
+void conv_base32(char *s, const unsigned char *v, int chars)
+{
+  static const char tab[] =
+    "abcdefghijkmnpqrstuvwxyz23456789";
+  int i, j = 0, k = 0;
+  
+  for (i = 0; i < chars; i++) {
+    if (k < 5) {
+      j = j << 8 | *(v++);
+      k += 8;
+    }
+    *s++ = tab[(j >> (k-5)) & 31];
+    k -= 5;
+  }
+  *s++ = '\0';
+}
+
+
 /*
  * Normalize a password by removing whitespace etc. and converting
  * l1| -> I, 0 -> O, \ -> /, just like otpw_verify() does
@@ -427,9 +454,10 @@ void pwnorm(char *password) {
   }
 }
 
+
 #define PW_BASE64  0
 #define PW_WORD4   1
-
+#define PW_BASE32  2
 
 /*
  * Convert a random bit sequence into a printable password
@@ -462,6 +490,12 @@ int make_passwd(const unsigned char *v, int vlen, int type, int entropy,
 
   /* calculate length of output and actually used entropy */
   switch (type) {
+  case PW_BASE32:
+    pwchars = (entropy + 4) / 5;
+    entropy = pwchars * 5;
+    pwlen = pwchars + (pwchars > 5 ? (pwchars - 1) / 4 : 0);
+    emax = ((vlen * 8) / 5) * 5;
+    break;
   case PW_BASE64:
     pwchars = (entropy + 5) / 6;
     entropy = pwchars * 6;
@@ -493,8 +527,12 @@ int make_passwd(const unsigned char *v, int vlen, int type, int entropy,
     return -4;
 
   switch (type) {
+  case PW_BASE32:
   case PW_BASE64:
-    conv_base64(buf, v, pwchars);
+    if (type == PW_BASE32)
+      conv_base32(buf, v, pwchars);
+    else
+      conv_base64(buf, v, pwchars);
     /* add spaces every 3-4 chars for readability (Bresenham's algorithm) */
     i = pwchars - 1;
     j = pwlen - 1;
@@ -534,23 +572,24 @@ void usage(char *argv0)
   fprintf(stderr, "One-Time Password Generator v 1.4 -- Markus Kuhn\n\n");
   fprintf(stderr, "%s [options]\n\n", argv0);
   fprintf
-    (stderr, "\nOptions:\n\n"
-     "\t-h <int>\tnumber of output lines (default 60)\n"
-     "\t-w <int>\tmax width of output lines (default 79)\n"
-     "\t-s <int>\tnumber of output pages (default 1)\n"
+    (stderr, "Options:\n\n"
+     "\t-h <int>\tnumber of output lines (default: 60)\n"
+     "\t-w <int>\tmax width of output lines (default: 79)\n"
+     "\t-s <int>\tnumber of output pages (default: 1)\n"
      "\t-e <int>\tminimum entropy of each one-time password [bits]\n"
      "\t\t\t(low security: <30, default: 48, high security: >60)\n"
-     "\t-p0\t\tpasswords from modified base64 encoding (default)\n"
-     "\t-p1\t\tpasswords from English 4-letter words\n"
+     "\t-p 0\t\tpasswords from modified base64 encoding (default)\n"
+     "\t-p 1\t\tpasswords from English 4-letter words\n"
+     "\t-p 2\t\tpasswords use only lowercase letters and digits\n"
      "\t-f <filename>\tdestination file for hashes (default: ~/"
      OTPW_FILE ")\n"
      "\t-n\t\tdo not add header and footer lines to output\n"
      "\t-o\t\tuse passwords in printed order (default: random order)\n"
-#if 0
-     /* under consideration for future releases */
-     "\t-k\t\tuse password-generating key (default: random passwords)\n"
-     "\t-c <challenge>\tgenerate key-based password for given challenge\n"
-#endif
+     "\t-m\t\tgenerate and display a master key for the password list\n"
+     "\t-E <int>\tminimum entropy of master key [bits] (default: 76)\n"
+     "\t-P <int>\tencoding for master key (available values as for -p)\n"
+     "\t-k\t\task for a master key and then regenerate a password\n\t\t\tlist"
+     " from it (this will not change ~/" OTPW_FILE ")\n"
      "\t-r\t\tsuggest a random password, then exit\n"
      "\t-d\t\toutput debugging information\n"
      "\nTypical uses:\n\n"
@@ -571,10 +610,11 @@ int main(int argc, char **argv)
   int i, j, k, l;
   struct passwd *pwd = NULL;
   FILE *f;
-  char timestr[81], hostname[81];
-  char password1[81], password2[81];
+  char timestr[81], hostname[81], challenge[81];
+  char password1[1024], password2[1024];
   char *password;
-  int pwlen, pwchars;
+  char *masterkey, *normal_masterkey = NULL;
+  int pwlen, pwchars, mklen;
   char header[LINE_MAX];
   char *fnout = NULL, *fnoutp = "";
   struct termios term, term_old;
@@ -582,6 +622,8 @@ int main(int argc, char **argv)
   int width = 79, height = 60, pages = 1, rows;
   int header_lines = 4, random_order = 1;
   int entropy = 48, emax, type = PW_BASE64;
+  int key_entropy = 76, key_type = PW_BASE32;
+  int use_masterkey = 0, regenerate = 0;
   int cols;
   time_t t;
   char *hbuf, *rndbuf;
@@ -597,60 +639,59 @@ int main(int argc, char **argv)
       for (j = 1; j > 0 && argv[i][j] != 0; j++)
         switch (argv[i][j]) {
         case 'h':
-	  if (++i >= argc) {
-	    fprintf(stderr, "Specify number of lines output after option -h "
-		    "(e.g., \"-h 50\")!\n");
-	    exit(1);
-	  }
+	  if (++i >= argc) usage(argv[0]);
 	  height = atoi(argv[i]);
           j = -1;
           break;
         case 'w':
-	  if (++i >= argc) {
-	    fprintf(stderr, "Specify maximum line length after option -w "
-		    "(e.g., \"-l 50\")!\n");
-	    exit(1);
-	  }
+	  if (++i >= argc) usage(argv[0]);
 	  width = atoi(argv[i]);
           j = -1;
           break;
         case 's':
-	  if (++i >= argc) {
-	    fprintf(stderr, "Specify number of pages after option -s "
-		    "(e.g., \"-s 2\")!\n");
-	    exit(1);
-	  }
+	  if (++i >= argc) usage(argv[0]);
 	  pages = atoi(argv[i]);
 	  if (pages < 1) {
-	    fprintf(stderr, "Specify at least 1 page!\n");
+	    fprintf(stderr, "Specify at least 1 page after -s!\n");
 	    exit(1);
 	  }
           j = -1;
           break;
 	case 'e':
-	  if (++i >= argc || (entropy = atoi(argv[i])) < 1) {
-	    fprintf(stderr, "Specify minimum entropy (bits) after option -e "
-		    "(e.g., \"-e 64\")!\n");
-	    exit(1);
-	  }
+	  if (++i >= argc || (entropy = atoi(argv[i])) < 1)
+	    usage(argv[0]);
+	  j = -1;
+          break;
+	case 'E':
+	  if (++i >= argc || (key_entropy = atoi(argv[i])) < 1)
+	    usage(argv[0]);
           j = -1;
           break;
         case 'p':
 	  if (strlen(argv[i]+j) == 2  &&
-	      argv[i][j+1] >= '0' && argv[i][j+1] <= '1')
+	      argv[i][j+1] >= '0' && argv[i][j+1] <= '1') {
+	    /* just for backwards compatibility with version 1.3 */
 	    type = argv[i][j+1] - '0';
-	  else {
-	    fprintf(stderr, "Unknown password format option '-%s'!\n",
-		    argv[i]+j);
-	    exit(1);
+	    j = -1;
+	    break;
 	  }
+	  if (++i >= argc)
+	    usage(argv[0]);
+	  type = atoi(argv[i]);
+	  if (make_passwd(NULL, 0, type, 0, NULL, 0) == -1)
+	    usage(argv[0]);
+	  j = -1;
+          break;
+        case 'P':
+	  if (++i >= argc)
+	    usage(argv[0]);
+	  key_type = atoi(argv[i]);
+	  if (make_passwd(NULL, 0, key_type, 0, NULL, 0) == -1)
+	    usage(argv[0]);
 	  j = -1;
           break;
         case 'f':
-	  if (++i >= argc) {
-	    fprintf(stderr, "Specify filename after option -f!\n");
-	    exit(1);
-	  }
+	  if (++i >= argc) usage(argv[0]);
           fnout = argv[i];
 	  j = -1;
           break;
@@ -662,6 +703,12 @@ int main(int argc, char **argv)
 	  break;
 	case 'o':
 	  random_order = 0;
+	  break;
+	case 'm':
+	  use_masterkey = 1;
+	  break;
+	case 'k':
+	  regenerate = 1;
 	  break;
 	case 'r':
 	  rbg_seed(r);
@@ -705,15 +752,24 @@ int main(int argc, char **argv)
 	    "wide lines!\n");
     exit(1);
   }
-
+  if (use_masterkey && regenerate) {
+    fprintf(stderr, "Options -m and -k are mutually exclusive!\n");
+    exit(1);
+  }
+  
   /* check whether entropy is ok */
   if (entropy < EMIN) {
     fprintf(stderr, "Entropy must be at least %d bits!\n", EMIN);
     exit(1);
   }
+  /* check whether entropy is ok */
+  if (key_entropy < 60) {
+    fprintf(stderr, "Masterkey entropy must be at least %d bits!\n", 60);
+    exit(1);
+  }
 
   /* allocate buffers for password generation */
-  rndbuflen = entropy / 8 + 16;
+  rndbuflen = (entropy > key_entropy ? entropy : key_entropy) / 8 + 16;
   rndbuf = malloc(rndbuflen);
   pwlen   = make_passwd(NULL, rndbuflen, type, entropy, NULL, 0);
   pwchars = make_passwd(NULL, rndbuflen, type, entropy, NULL, 1);
@@ -749,10 +805,11 @@ int main(int argc, char **argv)
       fnoutp = "~/";
   }
 
-  fprintf(stderr, "Generating random seed ...\n");
-  rbg_seed(r);
+  if (!regenerate) {
+    fprintf(stderr, "Generating random seed ...\n");
+    rbg_seed(r);
 
-  fprintf(stderr,
+    fprintf(stderr,
     "\nIf your paper password list is stolen, the thief should not gain\n"
     "access to your account with this information alone. Therefore, you\n"
     "need to memorize and enter below a prefix password. You will have to\n"
@@ -765,6 +822,7 @@ int main(int argc, char **argv)
     "corresponding passwords have to be appended after the prefix\n"
     "password. Best generate a new password list when you have used up half\n"
     "of the old one.\n\n", CHALLEN);
+  }
 
   /* disable echo if stdin is a terminal */
   if (!tcgetattr(fileno(stdin), &term)) {
@@ -776,48 +834,74 @@ int main(int argc, char **argv)
       exit(1);
     }
   }
-  /* check whether there is an old password list, to warn against
-   * accidental overwriting */
-  f = fopen(fnout, "r");
-  if (f) {
-    fclose(f);
-    fprintf(stderr, "Overwrite existing password list '%s%s' (Y/n)? ",
-	    fnoutp, fnout);
-    fgets(password1, sizeof(password1), stdin);
-    if (password1[0] != '\n' && password1[0] != 'y' && password1[0] != 'Y') {
-      if (stdin_is_tty)
-	tcsetattr(fileno(stdin), TCSANOW, &term_old);
-      fprintf(stderr, "\nAborted.\n");
-      exit(1);
+  if (!regenerate) {
+    /* check whether there is an old password list, to warn against
+     * accidental overwriting */
+    f = fopen(fnout, "r");
+    if (f) {
+      fclose(f);
+      fprintf(stderr, "Overwrite existing password list '%s%s' (Y/n)? ",
+	      fnoutp, fnout);
+      fgets(password1, sizeof(password1), stdin);
+      if (password1[0] != '\n' && password1[0] != 'y' && password1[0] != 'Y') {
+	if (stdin_is_tty)
+	  tcsetattr(fileno(stdin), TCSANOW, &term_old);
+	fprintf(stderr, "\nAborted.\n");
+	exit(1);
+      }
+      fprintf(stderr, "\n\n");
     }
-    fprintf(stderr, "\n\n");
   }
+
   /* ask for prefix password */
-  fprintf(stderr, "Enter new prefix password: ");
-  fgets(password1, sizeof(password1), stdin);
-  fprintf(stderr, "\nReenter prefix password: ");
-  fgets(password2, sizeof(password2), stdin);
+  if (regenerate) {
+    fprintf(stderr, "Enter master key: ");
+    fgets(password1, sizeof(password1), stdin);
+  } else {
+    fprintf(stderr, "Enter new prefix password: ");
+    fgets(password1, sizeof(password1), stdin);
+    fprintf(stderr, "\nReenter prefix password: ");
+    fgets(password2, sizeof(password2), stdin);
+  }
   if (stdin_is_tty)
     tcsetattr(fileno(stdin), TCSANOW, &term_old);
-  if (strcmp(password1, password2)) {
-    fprintf(stderr, "\nThe two entered passwords were not identical!\n");
-    exit(1);
+  if (regenerate) {
+    if (*password1)
+      password1[strlen(password1)-1] = 0; /* remove last character = LF */
+    normal_masterkey = password1;
+    pwnorm(normal_masterkey);
+    md_init(&md);
+    md_add(&md, normal_masterkey, strlen(normal_masterkey));
+    md_close(&md, h);
+    if (h[0] & (0xff - (1 << (8 - MASTERKEY_CHECKBITS)) + 1)) {
+      fprintf(stderr, "\nIncorrect master key (invalid checkbits)!\n");
+      exit(1);
+    }
+  } else {
+    if (strcmp(password1, password2)) {
+      fprintf(stderr, "\nThe two entered passwords were not identical!\n");
+      exit(1);
+    }
+    if (*password1)
+      password1[strlen(password1)-1] = 0; /* remove last character = LF */
   }
-  /* remove newline = last character */
-  if (*password1)
-    password1[strlen(password1)-1] = 0;
 
-  fprintf(stderr, "\n\nGenerating new one-time passwords.\n");
+  if (regenerate)
+    fprintf(stderr, "\n\nRecreating one-time password list ...\n");
+  else
+    fprintf(stderr, "\n\nGenerating new one-time passwords ...\n\n");
 
   if (header_lines) {
     /* prepare header line that uniquely identifies this password list */
     time(&t);
-    strftime(timestr, 80, "%Y-%m-%d %H:%M", localtime(&t));
+    strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M", localtime(&t));
     strcpy(hostname, "???");
     gethostname(hostname, sizeof(hostname));
     hostname[sizeof(hostname)-1] = 0;
-    snprintf(header, sizeof(header),
-	     "OTPW list generated %s on %s" NL NL, timestr, hostname);
+    snprintf(header, sizeof(header), regenerate ?
+	     "OTPW list regenerated %s on %s" NL NL :
+	     "OTPW list generated %s on %s" NL NL,
+	     timestr, hostname);
   }
 
   /* allocate buffer for hash values */
@@ -827,28 +911,69 @@ int main(int argc, char **argv)
     exit(1);
   }
 
+  assert(MASTERKEY_CHECKBITS < 8);
+  if (use_masterkey) {
+    mklen = make_passwd(0, 0, key_type, key_entropy + MASTERKEY_CHECKBITS,
+			NULL, 0) + 1;
+    masterkey = malloc(mklen);
+    normal_masterkey = malloc(mklen);
+    if (!masterkey || !normal_masterkey) {
+      fprintf(stderr, "Memory allocation error!\n");
+      exit(1);
+    }
+    do {
+      /* generate new masterkey */
+      rbg_iter(r);
+      random_string(r, MD_LEN, rndbuf, rndbuflen);
+      make_passwd(rndbuf, rndbuflen, key_type,
+		  key_entropy + MASTERKEY_CHECKBITS, masterkey, mklen);
+      strcpy(normal_masterkey, masterkey);
+      pwnorm(normal_masterkey);
+      md_init(&md);
+      md_add(&md, normal_masterkey, strlen(normal_masterkey));
+      md_close(&md, h);
+      /* until its hash has the first MASTERKEY_CHECKBITS zero */
+    } while (h[0] & (0xff - (1 << (8 - MASTERKEY_CHECKBITS)) + 1));
+    fprintf(stderr, "Master key: %s\n"
+	    "(Option -k will recreate the same password list "
+	    "from this key.)\n\n", masterkey);
+  }
+
   for (l = 0; l < pages; l++) {
     if (header_lines)
       fputs(header, stdout);
     for (i = 0; i < rows; i++) {
       for (j = 0; j < cols; j++) {
 	k = j * rows + i + l * rows * cols;
-	/* generate new password */
-	rbg_iter(r);
-	random_string(r, MD_LEN, rndbuf, rndbuflen);
+	snprintf(challenge, sizeof(challenge), "%03d", k);
+	/* generate new password ... */
+	if (use_masterkey || regenerate) {
+	  /* ... from masterkey and challenge string */
+	  md_init(&md);
+	  md_add(&md, normal_masterkey, strlen(normal_masterkey));
+	  md_add(&md, challenge, strlen(challenge));
+	  md_close(&md, h);
+	  random_string(h, MD_LEN, rndbuf, rndbuflen);
+	} else {
+	  /* ... randomly */
+	  rbg_iter(r);
+	  random_string(r, MD_LEN, rndbuf, rndbuflen);
+	}
 	make_passwd(rndbuf, rndbuflen, type, entropy, password, pwlen + 1);
 	/* output challenge */
-	printf("%03d %s", k, password);
+	printf("%s %s", challenge, password);
 	if (j < cols - 1)
 	  printf("  ");
-	/* hash password1 + pwnorm(password) and save result */
-	md_init(&md);
-	md_add(&md, password1, strlen(password1));
-	pwnorm(password);
-	md_add(&md, password, pwchars);
-	md_close(&md, h);
-	sprintf(hbuf + k * HBUFLEN, "%0*d", CHALLEN, k);
-	conv_base64(hbuf + k*HBUFLEN + CHALLEN, h, OTPW_HLEN);
+	if (!regenerate) {
+	  /* hash password1 + pwnorm(password) and save result */
+	  md_init(&md);
+	  md_add(&md, password1, strlen(password1));
+	  pwnorm(password);
+	  md_add(&md, password, pwchars);
+	  md_close(&md, h);
+	  sprintf(hbuf + k * HBUFLEN, "%0*d", CHALLEN, k);
+	  conv_base64(hbuf + k*HBUFLEN + CHALLEN, h, OTPW_HLEN);
+	}
       }
       if (i < rows - 1)
 	printf(NL);
@@ -876,8 +1001,11 @@ int main(int argc, char **argv)
   memset(password, 0xaa, pwlen);
   fclose(stdout);
 
+  if (regenerate)
+    exit(0);
+  
   /* create new hash file */
-  fprintf(stderr, "Creating '%s%s'.\n", fnoutp, fnout);
+  fprintf(stderr, "Creating '%s%s' ...\n", fnoutp, fnout);
   f = fopen(OTPW_TMP, "w");
   if (!f) {
     fprintf(stderr, "Can't write to '" OTPW_TMP);
