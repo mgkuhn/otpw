@@ -18,6 +18,8 @@
 #ifndef  RMD160H           /* make sure this file is read only once */
 #define  RMD160H
 
+#include <limits.h>
+
 /********************************************************************/
 
 /* typedef 8, 16 and 32 bit types, resp.  */
@@ -25,8 +27,11 @@
    for your operating system and compiler */
 typedef    unsigned char        byte;   /* unsigned 8-bit integer */
 typedef    unsigned short       word;   /* unsigned 16-bit integer */
+#if ULONG_MAX == 4294967295U
 typedef    unsigned long        dword;  /* unsigned 32-bit integer */ 
-
+#elif UINT_MAX == 4294967295U
+typedef    unsigned int         dword;  /* unsigned 32-bit integer */
+#endif
 
 /********************************************************************/
 
