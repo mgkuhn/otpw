@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: md.c,v 1.3 2003-06-16 16:28:59 mgk25 Exp $
+ * $Id: md.c,v 1.4 2003-06-19 17:37:11 mgk25 Exp $
  */
 
 #include <stdlib.h>
@@ -21,7 +21,7 @@ void md_init(md_state * md)
   assert(sizeof(byte) == 1);
 
   md->length_lo = md->length_hi = 0;
-  MDinit((dword *) md->md);
+  rmd160_init((dword *) md->md);
 }
 
 
@@ -54,14 +54,14 @@ void md_add(md_state *md, unsigned char *src, unsigned long len)
       for (i = 0; i < 64; i += 4)
 	X[i>>2] = (dword) md->buf[i] | ((dword) md->buf[i+1] << 8) |
 	  ((dword) md->buf[i+2] << 16) | ((dword) md->buf[i+3] << 24);
-      compress((dword *) md->md, X);
+      rmd160_compress((dword *) md->md, X);
     }
   }
   while (len >= MD_BUFLEN) {
     for (i = 0; i < 64; i += 4)
       X[i>>2] = (dword) src[i] | ((dword) src[i+1] << 8) |
 	((dword) src[i+2] << 16) | ((dword) src[i+3] << 24);
-    compress((dword *) md->md, X);
+    rmd160_compress((dword *) md->md, X);
     src += MD_BUFLEN;
     len -= MD_BUFLEN;
   }
@@ -70,18 +70,15 @@ void md_add(md_state *md, unsigned char *src, unsigned long len)
 }
 
 
-unsigned char *md_close(md_state * md)
+void md_close(md_state * md, unsigned char *result)
 {
-  static unsigned char buf[MD_LEN];
   int i;
 
-  MDfinish((dword *) md->md, (byte *) md->buf,
-	   (dword) md->length_lo, (dword) md->length_hi);
+  rmd160_finish((dword *) md->md, (byte *) md->buf,
+		(dword) md->length_lo, (dword) md->length_hi);
 
   for (i = 0; i < MD_LEN; i++)
-    buf[i] = ((dword *) md->md)[i>>2] >> (8 * (i & 3));
-
-  return buf;
+    result[i] = ((dword *) md->md)[i>>2] >> (8 * (i & 3));
 }
 
 
@@ -89,7 +86,7 @@ int md_selftest(void)
 {
   int i, j, fail = 0;
   md_state md;
-  unsigned char *result;
+  unsigned char result[MD_LEN];
 
   char *pattern[8] = {
     "",
@@ -163,7 +160,7 @@ int md_selftest(void)
     else
       /* single chunk feed */
       md_add(&md, pattern[i/2], strlen(pattern[i/2]));
-    result = md_close(&md);
+    md_close(&md, result);
     if (memcmp(result, md_result[i/2], MD_LEN) != 0) {
       abort();
       fail++;

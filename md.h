@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: md.h,v 1.2 2003-06-16 16:25:06 mgk25 Exp $
+ * $Id: md.h,v 1.3 2003-06-19 17:37:11 mgk25 Exp $
  */
 
 #ifndef MD_H
@@ -26,7 +26,7 @@ typedef struct {
 
 void md_init(md_state * md);
 void md_add(md_state * md, unsigned char *src, unsigned long len);
-unsigned char *md_close(md_state * md);
+void md_close(md_state * md, unsigned char *result);
 int md_selftest(void);
 
 #endif
