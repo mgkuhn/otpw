@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw-gen.c,v 1.2 2003-06-16 16:25:06 mgk25 Exp $
+ * $Id: otpw-gen.c,v 1.3 2003-06-19 17:45:49 mgk25 Exp $
  */
 
 #include <stdio.h>
@@ -98,7 +98,7 @@ void rbg_seed(unsigned char *r)
 
   md_add(&md, (unsigned char *) &entropy, sizeof(entropy));
 
-  memcpy(r, md_close(&md), MD_LEN);
+  md_close(&md, r);
 }
 
 
@@ -114,7 +114,7 @@ void rbg_iter(unsigned char *r)
   md_add(&md, (unsigned char *) &t, sizeof(t));
   md_add(&md, r, MD_LEN);
   md_add(&md, "AutomaGic", 9);  /* feel free to change this as a site key */
-  memcpy(r, md_close(&md), MD_LEN);
+  md_close(&md, r);
 }
 
 
@@ -143,17 +143,21 @@ void conv_base64(char *s, const unsigned char *v, int groups)
 
 int main(int argc, char **argv)
 {
-  char version[] = "Generate New One-Time Passwords v 1.0 -- Markus Kuhn 1998";
-  char usage[] = "%s\n\n%s [options]\n"
+  char version[] = "Generate New One-Time Passwords v 1.1 -- Markus Kuhn";
+  char usage[] = "%s\n\n%s [options] | lpr\n"
+    "\nOptions:\n\n"
     "\t-l <int>\tnumber of output lines (default 60)\n"
-    "\t-n <int>\tnumber of new passwords (overrides -l)\n";
+    "\t-n <int>\tnumber of new passwords (overrides -l)\n"
+    "\t-f <filename>\tdestination file for hashes (default: ~/" OTPW_FILE
+    ")\n\n";
 
-  unsigned char r[MD_LEN];
+  unsigned char r[MD_LEN], h[MD_LEN];
   md_state md;
   int i, j;
-  struct passwd *pwd;
+  struct passwd *pwd = NULL;
   FILE *f;
   char timestr[81], hostname[81], password1[81], password2[81];
+  char *fnout = NULL;
   struct termios term, term_old;
   int stdin_is_tty = 0;
   int pw_per_line = 80 / (5 + 5 * OTPW_GROUPS);
@@ -198,6 +202,14 @@ int main(int argc, char **argv)
 	  }
           j = -1;
           break;
+        case 'f':
+	  if (++i >= argc) {
+	    fprintf(stderr, "Specify filename after option -f!\n");
+	    exit(1);
+	  }
+          fnout = argv[i];
+	  j = -1;
+          break;
 	default:
           fprintf(stderr, usage, version, argv[0]);
           exit(1);
@@ -208,28 +220,33 @@ int main(int argc, char **argv)
     }
   }
 
-  pwd = getpwuid(getuid());
-  if (!pwd) {
-    fprintf(stderr, "Can't access your password database entry!\n");
-    exit(1);
+  if (!fnout) {
+    fnout = OTPW_FILE;
+    pwd = getpwuid(getuid());
+    if (!pwd) {
+      fprintf(stderr, "Can't access your password database entry!\n");
+      exit(1);
+    }
+    /* change to home directory */
+    chdir(pwd->pw_dir);
   }
-  /* change to home directory */
-  chdir(pwd->pw_dir);
 
   fprintf(stderr, "Generating random seed ...\n");
   rbg_seed(r);
 
-  fprintf(stderr, "\nIn order to ensure that a lost one-time password "
-	  "list on paper alone\ndoes not allow unauthorized access, a "
-	  "memorized prefix password has to\nbe entered directly before "
-	  "every one-time password. To request\none-time password "
-	  "authentication, append a '/' to your username when\nlogging "
-	  "in. A three-digit password number will be displayed. If\n"
-	  "another login is in progress, %d password numbers "
-	  "will be shown and\nall %d corresponding one-time passwords "
-	  "have to be entered after the\nprefix password. Generate a new "
-	  "password list when you have used up half\nof the old list.\n\n",
-	  OTPW_MULTI, OTPW_MULTI);
+  fprintf(stderr,
+    "If your paper password list is stolen, the thief should not gain\n"
+    "access to your account with this information alone. Therefore, you\n"
+    "need to memorize and enter below a prefix password. You will have to\n"
+    "enter that each time directly before entering the one-time password\n"
+    "(on the same line).\n\n"
+    "When you log in, a three-digit password number will be displayed.  It\n"
+    "identifies the one-time password on your list that you have to append\n"
+    "to the prefix password. If another login to your account is in\n"
+    "progress at the same time, %d password numbers will be shown and all\n"
+    "corresponding passwords have to be appended after the prefix\n"
+    "password. Best generate a new password list when you have used up half\n"
+    "of the old one.\n\n", OTPW_MULTI);
 
   fprintf(stderr, "Enter new prefix password: ");
   /* disable echo if stdin is a terminal */
@@ -254,11 +271,8 @@ int main(int argc, char **argv)
   /* remove newline = last character */
   if (*password1)
     password1[strlen(password1)-1] = 0;
-#ifdef DEBUG
-  fprintf(stderr, "Prefix = '%s'\n", password1);
-#endif
 
-  fprintf(stderr, "\n\nCreating '" OTPW_FILE "'.\n");
+  fprintf(stderr, "\n\nCreating '%s'.\n", fnout);
   f = fopen(OTPW_TMP, "w");
   if (!f) {
     fprintf(stderr, "Can't write to '" OTPW_TMP);
@@ -291,7 +305,8 @@ int main(int argc, char **argv)
     for (j = 0; j < OTPW_GROUPS; j++)
       printf("%.4s ", password2 + 4 * j);
     printf(i % pw_per_line == pw_per_line-1 ? NL : " ");
-    conv_base64(password2, md_close(&md), 3);
+    md_close(&md, h);
+    conv_base64(password2, h, 3);
     fprintf(f, "%s\n", password2);
   }
 
@@ -300,7 +315,7 @@ int main(int argc, char **argv)
   md_add(&md,
 	 "Always clean up all memory that was in contact with secrets!!!!!!",
 	 65);
-  md_close(&md);
+  md_close(&md, h);
   memset(password1, 0xaa, sizeof(password1));
   memset(password2, 0xaa, sizeof(password2));
 
@@ -309,13 +324,14 @@ int main(int argc, char **argv)
   printf(NL "!!! DO NOT FORGET TO ENTER PREFIX PASSWORD FIRST !!!" NL);
 
   fclose(f);
-  if (rename(OTPW_TMP, OTPW_FILE)) {
-    fprintf(stderr, "Can't rename '" OTPW_TMP "' to '" OTPW_FILE);
+  if (rename(OTPW_TMP, fnout)) {
+    fprintf(stderr, "Can't rename '" OTPW_TMP "' to '%s", fnout);
     perror("'");
     exit(1);
   }
-  /* any remaining lock is now meaningless */
-  unlink(OTPW_LOCK);
+  /* if we overwrite OTPW_FILE, then any remaining lock is now meaningless */
+  if (pwd)
+    unlink(OTPW_LOCK);
 
   return 0;
 }
