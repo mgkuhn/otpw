@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw-gen.c,v 1.5 2003-06-20 08:36:48 mgk25 Exp $
+ * $Id: otpw-gen.c,v 1.6 2003-06-24 20:41:59 mgk25 Exp $
  */
 
 #include <stdio.h>
@@ -25,6 +25,8 @@
 #define NL "\r\n"               /* new line sequence in password list output */
 #define HEADER_LINES  4       /* lines printed in addition to password lines */
 #define MAX_PASSWORDS 1000                /* maximum length of password list */
+#define CHALLEN 3                       /* number of characters in challenge */
+#define HBUFLEN (CHALLEN + OTPW_HLEN + 1)
 
 /* add the output and time of a shell command to message digest */
 
@@ -120,93 +122,104 @@ void rbg_iter(unsigned char *r)
 
 
 /*
- * Transform a binary string of groups*3 bytes length into an ASCII
- * string of groups*4 characters. The encoding is a modification of
- * the MIME base64 encoding where characters with easily confused
- * glyphs are avoided (0 vs O, 1 vs. 1 vs. I).
+ * Transform the first 6*chars bits of the binary string v into a chars
+ * character long string s. The encoding is a modification of the MIME
+ * base64 encoding where characters with easily confused glyphs are
+ * avoided (0 vs O, 1 vs. l vs. I).
  */
 
-void conv_base64(char *s, const unsigned char *v, int groups)
+void conv_base64(char *s, const unsigned char *v, int chars)
 {
   static const char tab[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk%mnopqrstuvwxyz"
     ":=23456789+/";
-  int i;
+  int i, j;
   
-  for (i = 0; i < groups; i++)
-    sprintf(s+4*i, "%c%c%c%c",
-	    tab[v[i*3]>>2],
-	    tab[((v[i*3]<<4) & 0x30) | (v[i*3+1]>>4)],
-	    tab[((v[i*3+1]<<2) & 0x3c) | (v[i*3+2]>>6)],
-	    tab[v[i*3+2] & 0x3f]);
+  for (i = 0; i < chars; i++) {
+    j = (i / 4) * 3;
+    switch (i % 4) {
+    case 0: *s++ = tab[  v[j]  >>2];                        break;
+    case 1: *s++ = tab[((v[j]  <<4) & 0x30) | (v[j+1]>>4)]; break;
+    case 2: *s++ = tab[((v[j+1]<<2) & 0x3c) | (v[j+2]>>6)]; break;
+    case 3: *s++ = tab[  v[j+2]     & 0x3f];                break;
+    }
+  }
+  *s++ = '\0';
 }
 
 
 int main(int argc, char **argv)
 {
-  char version[] = "Generate New One-Time Passwords v 1.1 -- Markus Kuhn";
+  char version[] = "One-Time Password Generator v 1.2 -- Markus Kuhn";
   char usage[] = "%s\n\n%s [options] | lpr\n"
     "\nOptions:\n\n"
-    "\t-l <int>\tnumber of output lines (default 60)\n"
-    "\t-n <int>\tnumber of new passwords (overrides -l)\n"
+    "\t-h <int>\tnumber of output lines (default 60)\n"
+    "\t-w <int>\tmax width of output lines (default 79)\n"
+    "\t-s <int>\tlength of each one-time password (default 8)\n"
     "\t-f <filename>\tdestination file for hashes (default: ~/" OTPW_FILE
     ")\n\n";
 
   unsigned char r[MD_LEN], h[MD_LEN];
   md_state md;
-  int i, j, k;
+  int i, j, k, l, m;
   struct passwd *pwd = NULL;
   FILE *f;
   char timestr[81], hostname[81], password1[81], password2[81];
   char *fnout = NULL;
   struct termios term, term_old;
   int stdin_is_tty = 0;
-  int pw_per_line = 80 / (5 + 5 * OTPW_GROUPS);
-  int newotpws = 60 * pw_per_line;
+  int width = 79, rows = 60 - HEADER_LINES, pwlen = 8;
+  int cols, spaces;
   time_t t;
+  char *hbuf;
 
   assert(md_selftest() == 0);
-  assert(OTPW_GROUPS * 24 < MD_LEN * 4);
-  assert(OTPW_GROUPS > 0);
-  assert(OTPW_MULTI > 0);
+  assert(OTPW_HLEN * 6 < MD_LEN * 8);
+  assert(OTPW_HLEN >= 8);
 
   /* read command line arguments */
   for (i = 1; i < argc; i++) {
     if (argv[i][0] == '-')
       for (j = 1; j > 0 && argv[i][j] != 0; j++)
         switch (argv[i][j]) {
-        case 'n':
+        case 'h':
 	  if (++i >= argc) {
-	    fprintf(stderr, "Specify number of new passwords after option -n "
-		    "(e.g., \"-n 50\")!\n");
+	    fprintf(stderr, "Specify number of lines output after option -h "
+		    "(e.g., \"-h 50\")!\n");
 	    exit(1);
 	  }
-          newotpws = atoi(argv[i]);
-	  if (newotpws < 0 || newotpws > MAX_PASSWORDS) {
-	    fprintf(stderr, "Specify not more than %d new passwords!\n",
-		    MAX_PASSWORDS);
-	    exit(1);
-	  }
-          j = -1;
-          break;
-        case 'l':
-	  if (++i >= argc) {
-	    fprintf(stderr, "Specify number of lines output after option -l "
-		    "(e.g., \"-l 50\")!\n");
-	    exit(1);
-	  }
-	  k = atoi(argv[i]);
-	  if (k <= HEADER_LINES) {
+	  rows = atoi(argv[i]) - HEADER_LINES;
+	  if (rows <= 0) {
 	    fprintf(stderr, "Specify not less than %d lines "
 		    "(to leave room for header)!\n", HEADER_LINES + 1);
 	    exit(1);
 	  }
-          newotpws = (k - HEADER_LINES) * pw_per_line;
-	  if (newotpws < 0 || newotpws > MAX_PASSWORDS) {
-	    fprintf(stderr, "Specify not more than %d lines or %d "
-		    "new passwords!\n",
-		    (MAX_PASSWORDS + pw_per_line - 1) / pw_per_line
-		    + HEADER_LINES, MAX_PASSWORDS);
+          j = -1;
+          break;
+        case 'w':
+	  if (++i >= argc) {
+	    fprintf(stderr, "Specify maximum line length after option -w "
+		    "(e.g., \"-l 50\")!\n");
+	    exit(1);
+	  }
+	  width = atoi(argv[i]);
+	  if (width < 64) {
+	    fprintf(stderr, "Specify not less than 64 character "
+		    "wide lines!\n");
+	    exit(1);
+	  }
+          j = -1;
+          break;
+        case 's':
+	  if (++i >= argc) {
+	    fprintf(stderr, "Specify password length after option -s "
+		    "(e.g., \"-s 8\")!\n");
+	    exit(1);
+	  }
+	  pwlen = atoi(argv[i]);
+	  if (pwlen < 4 || pwlen > (MD_LEN * 4) / 6) {
+	    fprintf(stderr, "Password length must be in range 4 to %d!\n",
+		    (MD_LEN * 4) / 6);
 	    exit(1);
 	  }
           j = -1;
@@ -228,6 +241,11 @@ int main(int argc, char **argv)
       exit(1);
     }
   }
+
+  spaces = (pwlen + 3) / 4;
+  cols = (width + 2) / (CHALLEN + 1 + pwlen + spaces + 1);
+  if (rows * cols > 1000)
+    rows = 1000 / cols;
 
   if (!fnout) {
     fnout = OTPW_FILE;
@@ -251,11 +269,11 @@ int main(int argc, char **argv)
     "(on the same line).\n\n"
     "When you log in, a three-digit password number will be displayed.  It\n"
     "identifies the one-time password on your list that you have to append\n"
-    "to the prefix password. If another login to your account is in\n"
-    "progress at the same time, %d password numbers will be shown and all\n"
+    "to the prefix password. If another login to your account is in progress\n"
+    "at the same time, several password numbers may be shown and all\n"
     "corresponding passwords have to be appended after the prefix\n"
     "password. Best generate a new password list when you have used up half\n"
-    "of the old one.\n\n", OTPW_MULTI);
+    "of the old one.\n\n");
 
   fprintf(stderr, "Enter new prefix password: ");
   /* disable echo if stdin is a terminal */
@@ -292,7 +310,8 @@ int main(int argc, char **argv)
 
   /* write magic code for format identification */
   fprintf(f, OTPW_MAGIC);
-  fprintf(f, "%04d\n", newotpws);
+  fprintf(f, "%d %d %d %d\n", rows * cols, CHALLEN, OTPW_HLEN,
+	  pwlen);
   
   fprintf(stderr, "Generating new one-time passwords ...\n\n");
 
@@ -304,19 +323,38 @@ int main(int argc, char **argv)
     printf(" on %.*s", (int) sizeof(hostname), hostname);
   printf(NL NL);
   
-  for (i = 0; i < newotpws; i++) {
-    md_init(&md);
-    rbg_iter(r);
-    md_add(&md, password1, strlen(password1));
-    conv_base64(password2, r, OTPW_GROUPS);
-    md_add(&md, password2, OTPW_GROUPS * 4);
-    printf("%03d ", i);
-    for (j = 0; j < OTPW_GROUPS; j++)
-      printf("%.4s ", password2 + 4 * j);
-    printf(i % pw_per_line == pw_per_line-1 ? NL : " ");
-    md_close(&md, h);
-    conv_base64(password2, h, 3);
-    fprintf(f, "%s\n", password2);
+  hbuf = malloc(rows * cols * HBUFLEN);
+  if (!hbuf) {
+    fprintf(stderr, "Memory allocation error!\n");
+    exit(1);
+  }
+
+  for (i = 0; i < rows; i++) {
+    for (j = 0; j < cols; j++) {
+      k = j * rows + i;
+      /* generate new password */
+      md_init(&md);
+      rbg_iter(r);
+      md_add(&md, password1, strlen(password1));
+      conv_base64(password2, r, pwlen);
+      md_add(&md, password2, pwlen);
+      /* output challenge */
+      printf("%03d ", k);
+      /* output password, insert spaces every 3-4 chars (Bresenham's alg.) */
+      m = 0;
+      for (l = 0; l < pwlen; l++) {
+	putchar(password2[l]);
+	if ((m += spaces) >= pwlen && l != pwlen - 1) {
+	  putchar(' ');
+	  m -= pwlen;
+	}
+      }
+      printf(j == cols - 1 ? NL : "  ");
+      /* hash password and save result */
+      md_close(&md, h);
+      sprintf(hbuf + k * HBUFLEN, "%0*d", CHALLEN, k);
+      conv_base64(hbuf + k*HBUFLEN + CHALLEN, h, OTPW_HLEN);
+    }
   }
 
   /* paranoia RAM scrubbing (note that we can't scrub stdout/stdin portably) */
@@ -328,9 +366,16 @@ int main(int argc, char **argv)
   memset(password1, 0xaa, sizeof(password1));
   memset(password2, 0xaa, sizeof(password2));
 
-  if (newotpws % pw_per_line != 0)
-    printf(NL);
-  printf(NL "            !!! REMEMBER: Enter the PREFIX PASSWORD first !!!" NL);
+  /* output all hash values in random permutation order */
+  for (k = rows * cols - 1; k >= 0; k--) {
+    rbg_iter(r);
+    i = k > 0 ? (*(unsigned *) r) % k : 0;
+    fprintf(f, "%s\n", hbuf + i*HBUFLEN);
+    memcpy(hbuf + i*HBUFLEN, hbuf + k*HBUFLEN, HBUFLEN);
+  }
+
+  printf(NL "%*s" NL, (cols*(CHALLEN + pwlen + spaces + 2) - 1)/2 + 49/2,
+	 "!!! REMEMBER: Enter the PREFIX PASSWORD first !!!");
 
   fclose(f);
   if (rename(OTPW_TMP, fnout)) {
