@@ -1,5 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<!-- $Id: otpw.html,v 1.8 2003-08-31 20:58:52 mgk25 Exp $ -->
+<!-- $Id: otpw.html,v 1.9 2003-09-01 13:43:22 mgk25 Exp $ -->
 <HTML>
 <HEAD>
 <TITLE>OTPW - a one-time password login package</TITLE>
@@ -333,6 +333,10 @@ add in <SAMP>/etc/ssh/sshd_config</SAMP> the lines
   PAMAuthenticationViaKbdInt      yes
 </PRE>
 
+<P>To force OpenSSH to use PAM authentication (instead of its own
+hostbased or publickey methods, which it normally tries first), use
+"<SAMP>ssh -o PreferredAuthentications=keyboard-interactive</SAMP>".
+
 <H2>Design rationale</H2>
 
 <P>Unlike S/KEY [Hal94, HM96], OTPW is not based on the Lamport scheme
@@ -409,6 +413,52 @@ attack while the authorized user finishes password entry.
 parts of the PAM wrapper and prepared a test setup. Also thanks to Kan
 Zhang, Piete Brooks and David Wheeler for useful suggestions.
 
+<H2>Known problems</H2>
+
+<a name="opensshbug"></a>
+
+<UL>
+
+<LI>The OTPW PAM module exposes a bug in <a
+href="http://www.openssh.com/">OpenSSH</a> 3.6.1 (and possibly many
+other versions) under Linux:
+
+<p><b>Observation:</b> If the ssh user aborts the keyboard-interactive
+password entry, for example by pressing Ctrl-C, then OTPW will not
+remove its <samp>~/.otpw.lock</samp> file. As a result, the user will
+get a triple-password request prompted at the next login attempt.
+
+<p><b>Analysis:</b> Debugging the sshd process with a breakpoint at
+the start of <SAMP>pam_end()</SAMP> shows that when ssh aborts the
+connection while sshd is inside the "conversation function" that sshd
+provides to the PAM system, then the conversation function never
+returns to PAM. Instead sshd calls <SAMP>pam_end()</SAMP> directly
+from inside the conversation function. This is in violation of <em><a
+href="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam_appl.html">The
+Linux-PAM application developers' guide</a></em> (draft 0.73,
+2000-12-02), which states in <a
+href="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam_appl-3.html#ss3.2">section
+3.2.1</a>, page 14 that "should an error occur the application should
+[...] simply return PAM_CONV_ERR". Linux-PAM keeps in
+<SAMP>pamh->caller_is</SAMP> track of whether the calling thread was
+supposed to come from the application (caller_is=2) or from the PAM
+module (caller_is=1). (See
+<samp>Linux-PAM-0.75/libpam/pam_private.h</samp> for the relevant
+macros.) The incorrect call of <SAMP>pam_end()</SAMP> simply results
+in an error message by Linux-PAM, because Linux-PAM thinks based on
+its <SAMP>pamh->caller_is=1</SAMP> value that <SAMP>pam_end()</SAMP>
+was accidentally called by the module. As a result, none of the PAM
+data structures are cleaned up, one side effect of which is that the
+OTPW lock file remains in place. (Another security-relevant side
+effect is that the memory scrubbing that PAM normally applies carefull
+to any password buffers never takes place!)
+
+<p><b>Workaround:</b> None. This needs to be fixed urgently by the
+OpenSSH developers, as it also breaks the proper deallocation of
+buffers with secrets.
+
+</UL>
+
 <H2>References</H2>
 
 <P>[Lam77] &nbsp; Leslie Lamport: <CITE>Password Authentication with Insecure
@@ -455,7 +505,7 @@ Sign-On Service (XSSO) - Pluggable Authentication</A>. June 1997.
 
 <P><A HREF= "http://www.cl.cam.ac.uk/~mgk25/">Markus Kuhn</A>
 <BR><SMALL>created 1997-11-25 --
-last modified 2003-08-31 --
+last modified 2003-09-01 --
 http://www.cl.cam.ac.uk/~mgk25/otpw.html</SMALL>
 </BODY>
 </HTML>
