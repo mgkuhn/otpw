@@ -1,12 +1,12 @@
 #
-# Makefile - One-time password login capability
+# Makefile - One-time password login system
 #
 # Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
 #
-# $Id: Makefile,v 1.11 2004-03-21 11:31:22 mgk25 Exp $
+# $Id: Makefile,v 1.2 2004-03-21 22:53:52+00 mgk25 Exp $
 #
 
-VERSION=1.3
+VERSION=1.4
 
 CC=gcc
 CFLAGS=-O -ggdb -W -Wall
@@ -29,13 +29,19 @@ pam_otpw.o: pam_otpw.c otpw.h md.h conf.h
 pam_otpw.so: pam_otpw.o otpw-l.o rmd160.o md.o
 	ld --shared -o $@ $+ -lcrypt -lpam -lpam_misc
 
-ship: all clean
-	ci -sRel -l RCS/*
-	cd .. ; tar cvf otpw-$(VERSION).tar --exclude otpw/RCS otpw ; \
-	gzip -9 otpw-$(VERSION).tar
-	mv ../otpw-$(VERSION).tar.gz ${HOME}/public_html/download/
-	cp otpw.html otpw.html~
-	mv otpw.html~ ${HOME}/public_html/otpw.html 
+snapshot: all clean
+	cvs diff
+	cd .. ; tar cvzf - --exclude otpw/CVS otpw | \
+	ssh trillium "cat >public_html/download/otpw-snapshot.tar.gz"
+	scp otpw.html trillium:public_html/otpw-snapshot.html
+
+ship: snapshot
+	cvs tag -c rel-`echo $(VERSION) | tr . -`
+	cd .. ; tar cvzf - --exclude otpw/CVS otpw | \
+	ssh trillium "cat >public_html/download/otpw-$(VERSION).tar.gz"
+	scp otpw.html trillium:public_html/
+	ssh trillium rm -f public_html/download/otpw-snapshot.tar.gz \
+	  public_html/otpw-snapshot.html
 
 install-pam: pam_otpw.so
 	cp $+ /lib/security/

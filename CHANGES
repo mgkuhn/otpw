@@ -23,3 +23,22 @@ Changes in version 1.3 (2003-09-30)
     in otpw.c (reported by Nicolas Pougetoux)
 
   - a few more minor bug fixes and stylistic improvements
+
+Changes in version 1.4 (2004-03-??)
+
+  - removed upper limit for entropy, i.e. passwords can now be
+    practically arbitrarily long (option -e)
+
+  - new option -o to disable the random permutation of passwords in
+    the ~/.otpw file, such that they are requested in the order
+    printed on the paper
+
+  - new option -n to suppress the 4-line header and footer on each
+    printed page
+
+  - at least one column of passwords will always be printed, even with
+    option -w 0
+
+  - new option -r suggests one random password to stdout, then exists
+
+  - ...

@@ -6,7 +6,7 @@
  */
 
 static char const rcsid[] =
-  "$Id: otpw-gen.c,v 1.12 2004-03-21 11:31:34 mgk25 Exp $";
+  "$Id: otpw-gen.c,v 1.2 2004-03-21 22:53:52+00 mgk25 Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +27,6 @@ static char const rcsid[] =
 
 #define NL "\r\n"               /* new line sequence in password list output */
 #define FF "\f\n"              /* form feed sequence in password list output */
-#define HEADER_LINES  4       /* lines printed in addition to password lines */
 #define MAX_PASSWORDS 1000                /* maximum length of password list */
 #define CHALLEN 3                       /* number of characters in challenge */
 #define HBUFLEN (CHALLEN + OTPW_HLEN + 1)
@@ -248,6 +247,7 @@ char word[2048][4] = {
 
 int debug = 0;
 
+
 /* add the output and time of a shell command to message digest */
 
 void gurgle(md_state *mdp, char *command)
@@ -257,6 +257,7 @@ void gurgle(md_state *mdp, char *command)
   long len = 0, l;
   struct timeval t;
 
+  return; /*  to make valgrind work --------- REMOVE ME ----------*/
   f = popen(command, "r");
   gettimeofday(&t, NULL);
   md_add(mdp, (unsigned char *) &t, sizeof(t));
@@ -324,7 +325,8 @@ void rbg_seed(unsigned char *r)
 }
 
 
-/* Determine the next random bit generator state */
+/* Determine the next random bit generator state by hashing the
+ * previous state along with the the time and some magic string */
 
 void rbg_iter(unsigned char *r)
 {
@@ -337,6 +339,33 @@ void rbg_iter(unsigned char *r)
   md_add(&md, r, MD_LEN);
   md_add(&md, "AutomaGic", 9);  /* feel free to change this as a site key */
   md_close(&md, r);
+}
+
+
+/* Generate a random byte string s with len bytes from a
+ * seed string seed with length slen */
+
+void random_string(char *seed, int slen, char *s, int len)
+{
+  md_state md;
+  unsigned char r[MD_LEN];
+  long i;
+  char j;
+
+  md_init(&md);
+  md_add(&md, seed, slen);
+  md_close(&md, r);
+  for (i = 0; i < len; i++) {
+    *(s++) = r[0];
+    md_init(&md);
+    j = i >> 24;  md_add(&md, &j, 1);
+    j = i >> 16;  md_add(&md, &j, 1);
+    j = i >> 8;   md_add(&md, &j, 1);
+    j = i;        md_add(&md, &j, 1);
+    md_add(&md, r, MD_LEN);
+    md_add(&md, seed, slen);
+    md_close(&md, r);
+  }
 }
 
 
@@ -499,36 +528,64 @@ int make_passwd(const unsigned char *v, int vlen, int type, int entropy,
 }
 
 
+/* Print brief usage instructions */
+void usage(char *argv0)
+{
+  fprintf(stderr, "One-Time Password Generator v 1.4 -- Markus Kuhn\n\n");
+  fprintf(stderr, "%s [options]\n\n", argv0);
+  fprintf
+    (stderr, "\nOptions:\n\n"
+     "\t-h <int>\tnumber of output lines (default 60)\n"
+     "\t-w <int>\tmax width of output lines (default 79)\n"
+     "\t-s <int>\tnumber of output pages (default 1)\n"
+     "\t-e <int>\tminimum entropy of each one-time password [bits]\n"
+     "\t\t\t(low security: <30, default: 48, high security: >60)\n"
+     "\t-p0\t\tpasswords from modified base64 encoding (default)\n"
+     "\t-p1\t\tpasswords from English 4-letter words\n"
+     "\t-f <filename>\tdestination file for hashes (default: ~/"
+     OTPW_FILE ")\n"
+     "\t-n\t\tdo not add header and footer lines to output\n"
+     "\t-o\t\tuse passwords in printed order (default: random order)\n"
+#if 0
+     /* under consideration for future releases */
+     "\t-k\t\tuse password-generating key (default: random passwords)\n"
+     "\t-c <challenge>\tgenerate key-based password for given challenge\n"
+#endif
+     "\t-r\t\tsuggest a random password, then exit\n"
+     "\t-d\t\toutput debugging information\n"
+     "\nTypical uses:\n\n"
+     "  otpw-gen | lpr\n\n"
+     "    Generate password list and print it. The hash values for each "
+     "password\n    will be stored in ~/" OTPW_FILE " for use during login "
+     "verification.\n\n"
+     "  otpw-gen -h 70 -s 2 | a2ps -1B -L 70 --borders no\n\n"
+     "    Generate password list and print it with nicer formatting.\n\n");
+  exit(1);
+}
+
+
 int main(int argc, char **argv)
 {
-  char version[] = "One-Time Password Generator v 1.2 -- Markus Kuhn";
-  char usage[] = "%s\n\n%s [options] | lpr\n"
-    "\nOptions:\n\n"
-    "\t-h <int>\tnumber of output lines (default 60)\n"
-    "\t-w <int>\tmax width of output lines (default 79)\n"
-    "\t-s <int>\tnumber of output pages (default 1)\n"
-    "\t-e <int>\tminimum entropy of each one-time password [bits]\n"
-    "\t\t\t(low security: <30, default: 48, high security: >60)\n"
-    "\t-p0\t\tpasswords from modified base64 encoding (default)\n"
-    "\t-p1\t\tpasswords from English 4-letter words\n"
-    "\t-f <filename>\tdestination file for hashes (default: ~/" OTPW_FILE ")\n"
-    "\t-d\t\toutput debugging information\n";
-
   unsigned char r[MD_LEN], h[MD_LEN];
   md_state md;
   int i, j, k, l;
   struct passwd *pwd = NULL;
   FILE *f;
-  char timestr[81], hostname[81], password1[81], password2[81];
+  char timestr[81], hostname[81];
+  char password1[81], password2[81];
+  char *password;
+  int pwlen, pwchars;
   char header[LINE_MAX];
   char *fnout = NULL, *fnoutp = "";
   struct termios term, term_old;
   int stdin_is_tty = 0;
-  int width = 79, rows = 60 - HEADER_LINES, pages = 1, pwlen, pwchars;
+  int width = 79, height = 60, pages = 1, rows;
+  int header_lines = 4, random_order = 1;
   int entropy = 48, emax, type = PW_BASE64;
   int cols;
   time_t t;
-  char *hbuf;
+  char *hbuf, *rndbuf;
+  int rndbuflen;
 
   assert(md_selftest() == 0);
   assert(OTPW_HLEN * 6 < MD_LEN * 8);
@@ -545,12 +602,7 @@ int main(int argc, char **argv)
 		    "(e.g., \"-h 50\")!\n");
 	    exit(1);
 	  }
-	  rows = atoi(argv[i]) - HEADER_LINES;
-	  if (rows <= 0) {
-	    fprintf(stderr, "Specify not less than %d lines "
-		    "(to leave room for header)!\n", HEADER_LINES + 1);
-	    exit(1);
-	  }
+	  height = atoi(argv[i]);
           j = -1;
           break;
         case 'w':
@@ -560,11 +612,6 @@ int main(int argc, char **argv)
 	    exit(1);
 	  }
 	  width = atoi(argv[i]);
-	  if (width < 64) {
-	    fprintf(stderr, "Specify not less than 64 character "
-		    "wide lines!\n");
-	    exit(1);
-	  }
           j = -1;
           break;
         case 's':
@@ -581,12 +628,11 @@ int main(int argc, char **argv)
           j = -1;
           break;
 	case 'e':
-	  if (++i >= argc) {
+	  if (++i >= argc || (entropy = atoi(argv[i])) < 1) {
 	    fprintf(stderr, "Specify minimum entropy (bits) after option -e "
 		    "(e.g., \"-e 64\")!\n");
 	    exit(1);
 	  }
-	  entropy = atoi(argv[i]);
           j = -1;
           break;
         case 'p':
@@ -611,29 +657,77 @@ int main(int argc, char **argv)
 	case 'd':
 	  debug = 1;
 	  break;
+	case 'n':
+	  header_lines = 0;
+	  break;
+	case 'o':
+	  random_order = 0;
+	  break;
+	case 'r':
+	  rbg_seed(r);
+	  rndbuflen = entropy / 8 + 16;
+	  rndbuf = malloc(rndbuflen);
+	  pwlen = make_passwd(rndbuf, rndbuflen,
+			      type, entropy, NULL, 0); /* pwlen */
+	  assert(pwlen >= 0);
+	  password = malloc(pwlen+1);
+	  if (!rndbuf || !password) {
+	    fprintf(stderr, "Memory allocation error!\n");
+	    exit(1);
+	  }
+	  random_string(r, MD_LEN, rndbuf, rndbuflen);
+	  assert(make_passwd(rndbuf, rndbuflen, type, entropy, NULL, 3)
+		 >= entropy); /* emax */
+	  l = make_passwd(rndbuf, rndbuflen, type, entropy,
+			  password, pwlen+1);
+	  assert(l >= 0);
+	  printf("%s\n", password);
+	  rbg_iter(r); rbg_iter(r); /* memory scrubbing */
+	  memset(password, 0xaa, pwlen); /* memory scrubbing */
+	  exit(0);
 	default:
-          fprintf(stderr, usage, version, argv[0]);
-          exit(1);
+          usage(argv[0]);
         }
     else {
-      fprintf(stderr, usage, version, argv[0]);
-      exit(1);
+      usage(argv[0]);
     }
   }
 
-  /* determine password length */
-  pwlen   = make_passwd(NULL, MD_LEN/2, type, entropy, NULL, 0);
-  pwchars = make_passwd(NULL, MD_LEN/2, type, entropy, NULL, 1);
-  
+  /* check and process some parameters */
+  rows = height - header_lines;
+  if (rows <= 0) {
+    fprintf(stderr, "At least %d lines per page required (incl. header)!\n",
+	    header_lines + 1);
+    exit(1);
+  }
+  if (width < 64 && header_lines) {
+    fprintf(stderr, "Specify not less than 64 character "
+	    "wide lines!\n");
+    exit(1);
+  }
+
   /* check whether entropy is ok */
-  emax = make_passwd(NULL, MD_LEN/2, type, entropy, NULL, 3);
-  if (entropy < EMIN || entropy > emax) {
-    fprintf(stderr, "Entropy must be in the range %d to %d bits!\n", EMIN,
-	    emax);
+  if (entropy < EMIN) {
+    fprintf(stderr, "Entropy must be at least %d bits!\n", EMIN);
+    exit(1);
+  }
+
+  /* allocate buffers for password generation */
+  rndbuflen = entropy / 8 + 16;
+  rndbuf = malloc(rndbuflen);
+  pwlen   = make_passwd(NULL, rndbuflen, type, entropy, NULL, 0);
+  pwchars = make_passwd(NULL, rndbuflen, type, entropy, NULL, 1);
+  emax    = make_passwd(NULL, rndbuflen, type, entropy, NULL, 3);
+  assert(pwlen > 0 && pwchars > 0 && emax > entropy);
+  password = malloc(pwlen + 1);
+  if (!rndbuf || !password) {
+    fprintf(stderr, "Memory allocation error!\n");
     exit(1);
   }
 
   cols = (width + 2) / (CHALLEN + 1 + pwlen + 2);
+  if (cols < 1)
+    cols = 1;
   if (pages * rows * cols > 1000) {
     if (pages == 1)
       rows = 1000 / cols;
@@ -713,7 +807,77 @@ int main(int argc, char **argv)
   if (*password1)
     password1[strlen(password1)-1] = 0;
 
-  fprintf(stderr, "\n\nCreating '%s%s'.\n", fnoutp, fnout);
+  fprintf(stderr, "\n\nGenerating new one-time passwords.\n");
+
+  if (header_lines) {
+    /* prepare header line that uniquely identifies this password list */
+    time(&t);
+    strftime(timestr, 80, "%Y-%m-%d %H:%M", localtime(&t));
+    strcpy(hostname, "???");
+    gethostname(hostname, sizeof(hostname));
+    hostname[sizeof(hostname)-1] = 0;
+    snprintf(header, sizeof(header),
+	     "OTPW list generated %s on %s" NL NL, timestr, hostname);
+  }
+
+  /* allocate buffer for hash values */
+  hbuf = malloc(pages * rows * cols * HBUFLEN);
+  if (!hbuf) {
+    fprintf(stderr, "Memory allocation error!\n");
+    exit(1);
+  }
+
+  for (l = 0; l < pages; l++) {
+    if (header_lines)
+      fputs(header, stdout);
+    for (i = 0; i < rows; i++) {
+      for (j = 0; j < cols; j++) {
+	k = j * rows + i + l * rows * cols;
+	/* generate new password */
+	rbg_iter(r);
+	random_string(r, MD_LEN, rndbuf, rndbuflen);
+	make_passwd(rndbuf, rndbuflen, type, entropy, password, pwlen + 1);
+	/* output challenge */
+	printf("%03d %s", k, password);
+	if (j < cols - 1)
+	  printf("  ");
+	/* hash password1 + pwnorm(password) and save result */
+	md_init(&md);
+	md_add(&md, password1, strlen(password1));
+	pwnorm(password);
+	md_add(&md, password, pwchars);
+	md_close(&md, h);
+	sprintf(hbuf + k * HBUFLEN, "%0*d", CHALLEN, k);
+	conv_base64(hbuf + k*HBUFLEN + CHALLEN, h, OTPW_HLEN);
+      }
+      if (i < rows - 1)
+	printf(NL);
+    }
+    if (header_lines) {
+      printf(NL NL "%*s", (cols*(CHALLEN + 1 + pwlen + 2) - 2)/2 + 50/2,
+	     "!!! REMEMBER: Enter the PREFIX PASSWORD first !!!");
+    }
+    if (l < pages - 1)
+      printf(FF);
+    else
+      printf(NL);
+  }
+
+  /* paranoia RAM scrubbing (note that we can't scrub stdout/stdin portably) */
+  rbg_iter(r);
+  rbg_iter(r);
+  md_init(&md);
+  md_add(&md,
+	 "Always clean up all memory that was in contact with secrets!!!!!!",
+	 65);
+  md_close(&md, h);
+  memset(password1, 0xaa, sizeof(password1));
+  memset(password2, 0xaa, sizeof(password2));
+  memset(password, 0xaa, pwlen);
+  fclose(stdout);
+
+  /* create new hash file */
+  fprintf(stderr, "Creating '%s%s'.\n", fnoutp, fnout);
   f = fopen(OTPW_TMP, "w");
   if (!f) {
     fprintf(stderr, "Can't write to '" OTPW_TMP);
@@ -727,64 +891,17 @@ int main(int argc, char **argv)
   fprintf(f, "%d %d %d %d\n", pages * rows * cols, CHALLEN, OTPW_HLEN,
 	  pwchars);
   
-  fprintf(stderr, "Generating new one-time passwords ...\n\n");
-
-  /* prepare header line that uniquely identifies this password list */
-  time(&t);
-  strftime(timestr, 80, "%Y-%m-%d %H:%M", localtime(&t));
-  strcpy(hostname, "???");
-  gethostname(hostname, sizeof(hostname));
-  hostname[sizeof(hostname)-1] = 0;
-  snprintf(header, sizeof(header),
-	   "OTPW list generated %s on %s" NL NL, timestr, hostname);
-  
-  hbuf = malloc(pages * rows * cols * HBUFLEN);
-  if (!hbuf) {
-    fprintf(stderr, "Memory allocation error!\n");
-    exit(1);
-  }
-
-  for (l = 0; l < pages; l++) {
-    fputs(header, stdout);
-    for (i = 0; i < rows; i++) {
-      for (j = 0; j < cols; j++) {
-	k = j * rows + i + l * rows * cols;
-	/* generate new password */
-	rbg_iter(r);
-	make_passwd(r, MD_LEN, type, entropy, password2, sizeof(password2));
-	/* output challenge */
-	printf("%03d %s", k, password2);
-	printf(j == cols - 1 ? NL : "  ");
-	/* hash password1 + pwnorm(password2) and save result */
-	md_init(&md);
-	md_add(&md, password1, strlen(password1));
-	pwnorm(password2);
-	md_add(&md, password2, pwchars);
-	md_close(&md, h);
-	sprintf(hbuf + k * HBUFLEN, "%0*d", CHALLEN, k);
-	conv_base64(hbuf + k*HBUFLEN + CHALLEN, h, OTPW_HLEN);
-      }
-    }
-    printf(NL "%*s%s", (cols*(CHALLEN + 1 + pwlen + 2) - 2)/2 + 50/2,
-	   "!!! REMEMBER: Enter the PREFIX PASSWORD first !!!",
-	   l == pages - 1 ? NL : FF);
-  }
-
-  /* paranoia RAM scrubbing (note that we can't scrub stdout/stdin portably) */
-  md_init(&md);
-  md_add(&md,
-	 "Always clean up all memory that was in contact with secrets!!!!!!",
-	 65);
-  md_close(&md, h);
-  memset(password1, 0xaa, sizeof(password1));
-  memset(password2, 0xaa, sizeof(password2));
-
   /* output all hash values in random permutation order */
-  for (k = pages * rows * cols - 1; k >= 0; k--) {
-    rbg_iter(r);
-    i = k > 0 ? (*(unsigned *) r) % k : 0;
-    fprintf(f, "%s\n", hbuf + i*HBUFLEN);
-    memcpy(hbuf + i*HBUFLEN, hbuf + k*HBUFLEN, HBUFLEN);
+  if (random_order) {
+    for (k = pages * rows * cols - 1; k >= 0; k--) {
+      rbg_iter(r);
+      i = k > 0 ? (*(unsigned *) r) % k : 0;
+      fprintf(f, "%s\n", hbuf + i*HBUFLEN);
+      memcpy(hbuf + i*HBUFLEN, hbuf + k*HBUFLEN, HBUFLEN);
+    }
+  } else {
+    for (k = 0; k < pages * rows * cols; k++)
+      fprintf(f, "%s\n", hbuf + k*HBUFLEN);
   }
 
   fclose(f);

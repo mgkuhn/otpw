@@ -123,6 +123,23 @@ words (2.75 bits per character).
 Specify a file to be used instead of
 .I ~/.otpw
 for storing the hash values of the generated one-time passwords.
+.TP
+.BI \-n
+Suppress the addition of a header and footer line to each output page.
+This reduces the minimum value for option
+.I \-h
+to 1.
+.TP
+.BI \-o
+Suppress the random reordering of passwords. With this option,
+passwords will be requested in the order printed on the paper.
+.TP
+.BI \-r
+Output a suggestion for a random password, then exit. The length and
+type of password can be selected with options
+.I \-e
+and
+.IR \-p .
 .SH AUTHOR
 The
 .I OTPW
