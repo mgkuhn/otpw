@@ -111,18 +111,18 @@ typedef    unsigned int         dword;  /* unsigned 32-bit integer */
 
 /* function prototypes */
 
-void MDinit(dword *MDbuf);
+void rmd160_init(dword *MDbuf);
 /*
  *  initializes MDbuffer to "magic constants"
  */
 
-void compress(dword *MDbuf, dword *X);
+void rmd160_compress(dword *MDbuf, dword *X);
 /*
  *  the compression function.
  *  transforms MDbuf using message bytes X[0] through X[15]
  */
 
-void MDfinish(dword *MDbuf, byte *strptr, dword lswlen, dword mswlen);
+void rmd160_finish(dword *MDbuf, byte *strptr, dword lswlen, dword mswlen);
 /*
  *  puts bytes from strptr into X and pad out; appends length 
  *  and finally, compresses the last block(s)
