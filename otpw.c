@@ -3,8 +3,10 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw.c,v 1.7 2003-08-31 20:52:18 mgk25 Exp $
  */
+
+static char const rcsid[] =
+  "$Id: otpw.c,v 1.8 2003-09-01 15:53:55 mgk25 Exp $";
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -154,7 +156,7 @@ void otpw_prepare(struct challenge *ch, struct passwd *user, int flags)
     goto cleanup;
   }
   if (!(f = fopen(OTPW_FILE, "r"))) {
-    DEBUG_LOG("fopen(\"%s\", \"r\"): %s", user->pw_dir, strerror(errno));
+    DEBUG_LOG("fopen(\"%s\", \"r\"): %s", OTPW_FILE, strerror(errno));
     goto cleanup;
   }
   

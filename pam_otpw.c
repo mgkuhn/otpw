@@ -12,8 +12,10 @@
  * Inspired by pam_pwdfile.c by Charl P. Botha <cpbotha@ieee.org>
  * and pam_unix/support.c (part of the standard PAM distribution)
  *
- * $Id: pam_otpw.c,v 1.5 2003-08-31 20:51:34 mgk25 Exp $
  */
+
+static char const rcsid[] =
+  "$Id: pam_otpw.c,v 1.6 2003-09-01 15:53:55 mgk25 Exp $";
 
 #include <stdarg.h>
 #include <stdio.h>

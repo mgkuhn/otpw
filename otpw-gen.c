@@ -3,8 +3,10 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw-gen.c,v 1.9 2003-08-31 20:51:34 mgk25 Exp $
  */
+
+static char const rcsid[] =
+  "$Id: otpw-gen.c,v 1.10 2003-09-01 15:53:55 mgk25 Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>
