@@ -1,9 +1,9 @@
 /*
  * One-time password login capability - configuration options
  *
- * Markus Kuhn <mkuhn@acm.org>, Computer Laboratory, University of Cambridge
+ * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: conf.h,v 1.1 1998-01-21 00:42:08 mgk25 Exp $
+ * $Id: conf.h,v 1.2 2003-06-16 16:25:06 mgk25 Exp $
  */
 
 #ifndef OTPW_CONF_H
