@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw.h,v 1.4 2003-06-20 13:58:58 mgk25 Exp $
+ * $Id: otpw.h,v 1.5 2003-06-24 20:41:22 mgk25 Exp $
  */
 
 #ifndef OTPW_H
@@ -21,6 +21,11 @@
 #define OTPW_ERROR  2   /* user has not registered for the OTPW service
 			 * or something else went wrong */
 
+/* flags for otpw_prepare() */
+
+#define OTPW_DEBUG   1  /* output debugging messages via DEBUG_LOG macro */
+#define OTPW_NOLOCK  2  /* disable locking, never create or check OTPW_LOCK */
+
 /*
  * A data structure used by otpw_prepare to return the
  * selected challenge 
@@ -31,11 +36,14 @@ struct challenge {
   int passwords;             /* number of req. passwords (0, 1, OTPW_MULTI) */
   int locked;                /* flag, whether lock has been set */
   int entries;               /* number of entries in OTPW_FILE */
+  int pwlen;                 /* number of characters in password */
   int remaining;             /* number of remaining unused OTPW_FILE entries */
   uid_t uid;                 /* effective uid for OTPW_FILE/OTPW_LOCK access */
   gid_t gid;                 /* effective gid for OTPW_FILE/OTPW_LOCK access */
   int selection[OTPW_MULTI]; /* positions of the requested passwords */
-  char hash[OTPW_MULTI][13]; /* base64 hash value of the requested passwords */
+  char hash[OTPW_MULTI][OTPW_HLEN + 1];
+                             /* base64 hash value of the requested passwords */
+  int flags;                 /* 1 : debug messages, 2: no locking */
 };
 
 /*
@@ -54,7 +62,7 @@ struct challenge {
  * new passwords if so.
  */
 
-void otpw_prepare(struct challenge *ch, struct passwd *user);
+void otpw_prepare(struct challenge *ch, struct passwd *user, int flags);
 
 /*
  * After the one-time password has been entered, call optw_verify()

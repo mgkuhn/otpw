@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw.c,v 1.5 2003-06-20 13:58:58 mgk25 Exp $
+ * $Id: otpw.c,v 1.6 2003-06-24 20:41:22 mgk25 Exp $
  */
 
 #include <stdlib.h>
@@ -23,11 +23,12 @@
 #include "md.h"
 
 #ifndef DEBUG_LOG
-#  if DEBUG
-#    define DEBUG_LOG(...) fprintf(stderr, __VA_ARGS__); fputc('\n', stderr)
-#  else
-#    define DEBUG_LOG(...)
-#  endif
+#if DEBUG
+#define DEBUG_LOG(...) if (ch->flags & OTPW_DEBUG) \
+                         { fprintf(stderr, __VA_ARGS__); fputc('\n', stderr); }
+#else
+#define DEBUG_LOG(...)
+#endif
 #endif
 
 /*
@@ -84,35 +85,47 @@ void rbg_iter(unsigned char *r)
   md_close(&md, r);
 }
 
+/*
+ * Transform the first 6*chars bits of the binary string v into a chars
+ * character long string s. The encoding is a modification of the MIME
+ * base64 encoding where characters with easily confused glyphs are
+ * avoided (0 vs O, 1 vs. l vs. I).
+ */
 
-void conv_base64(char *s, const unsigned char *v, int groups)
+void conv_base64(char *s, const unsigned char *v, int chars)
 {
   const char tab[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk%mnopqrstuvwxyz"
     ":=23456789+/";
-  int i;
+  int i, j;
   
-  for (i = 0; i < groups; i++)
-    sprintf(s+4*i, "%c%c%c%c",
-            tab[v[i*3]>>2],
-            tab[((v[i*3]<<4) & 0x30) | (v[i*3+1]>>4)],
-            tab[((v[i*3+1]<<2) & 0x3c) | (v[i*3+2]>>6)],
-            tab[v[i*3+2] & 0x3f]);
+  for (i = 0; i < chars; i++) {
+    j = (i / 4) * 3;
+    switch (i % 4) {
+    case 0: *s++ = tab[  v[j]  >>2];                        break;
+    case 1: *s++ = tab[((v[j]  <<4) & 0x30) | (v[j+1]>>4)]; break;
+    case 2: *s++ = tab[((v[j+1]<<2) & 0x3c) | (v[j+2]>>6)]; break;
+    case 3: *s++ = tab[  v[j+2]     & 0x3f];                break;
+    }
+  }
+  *s++ = '\0';
 }
 
 
-void otpw_prepare(struct challenge *ch, struct passwd *user)
+void otpw_prepare(struct challenge *ch, struct passwd *user, int flags)
 {
   FILE *f = NULL;
   int i, j;
-  int locked, count, repeat;
+  int count, repeat;
   int olduid = -1;
   int oldgid = -1;
   char line[81];
+  char lock[81];
   unsigned char r[MD_LEN];
   struct stat lbuf;
-  char (*hash)[13] = NULL;   /* list of hashed passwords */
-
+  char *hbuf = NULL;   /* list of challenges and hashed passwords */
+  int challen, hlen, hbuflen;
+  
   if (!ch) {
     DEBUG_LOG("!ch");
     return;
@@ -120,8 +133,10 @@ void otpw_prepare(struct challenge *ch, struct passwd *user)
   ch->passwords = 0;
   ch->remaining = -1;
   ch->entries = -1;
+  ch->pwlen = 0;
   ch->locked = 0;
   ch->challenge[0] = 0;
+  ch->flags = flags;
   if (!user) {
     DEBUG_LOG("No password database entry provided!");
     return;
@@ -153,62 +168,62 @@ void otpw_prepare(struct challenge *ch, struct passwd *user)
   /* check header */
   if (!fgets(line, sizeof(line), f) ||
       strcmp(line, OTPW_MAGIC) ||
-      !fgets(line, sizeof(line), f)) {
+      !fgets(line, sizeof(line), f) ||
+      sscanf(line, "%d%d%d%d\n", &ch->entries,
+	     &challen, &hlen, &ch->pwlen) != 4) {
     DEBUG_LOG("Header in '" OTPW_FILE "' wrong!");
     goto cleanup;
   }
-  ch->entries = atoi(line);
-  if (ch->entries < 1 || ch->entries > 999) {
-    DEBUG_LOG("Number of entries (%d) out of allowed range!",
-	      ch->entries);
+  if (ch->entries < 1 || ch->entries > 999 ||
+      challen < 1 || challen > 60 ||
+      ch->pwlen  < 4 || ch->pwlen * 6 > MD_LEN * 8 ||
+      hlen != OTPW_HLEN) {
+    DEBUG_LOG("Header parameters (%d %d %d %d) out of allowed range!",
+	      ch->entries, challen, hlen, ch->pwlen);
     goto cleanup;
   }
+  hbuflen = challen + hlen;
   
-  hash = (char (*)[13]) malloc(ch->entries * sizeof(char [13]));
-  if (!ch) {
+  hbuf =  malloc(ch->entries * hbuflen);
+  if (!hbuf) {
     DEBUG_LOG("malloc failed");
     return;
   }
-
+  
   ch->remaining = 0;
+  j = -1;
   for (i = 0; i < ch->entries; i++) {
     if (!fgets(line, sizeof(line), f) ||
-	sscanf(line, "%12s", hash[i]) != 1) {
+	(int) strlen(line) != hbuflen + 1) {
       DEBUG_LOG("'" OTPW_FILE "' too short!");
       goto cleanup;
     }
-    if (hash[i][0] != '-')
+    memcpy(hbuf + i*hbuflen, line, hbuflen);
+    if (hbuf[i*hbuflen] != '-') {
       ch->remaining++;
+      if (j < 0)
+	j = i;   /* select first unused hash */
+    }
   }
   if (ch->remaining < 1) {
     DEBUG_LOG("No passwords left!");
     goto cleanup;
   }
-
-  /* select challenge */
-  count = 0;
-  j = 0;
-  do {
-#if OTPW_RANDOM_CHALLENGE
-    /* This truly random challenge is not a good idea since this gives
-     * an attacker who knows one password quick access to all challenges */
-    rbg_iter(r);
-    j = *((unsigned int *) r) % ch->entries;
-#else
-    /* do a deterministic slightly pseudo-random search */
-    j = (j + 17) % ch->entries;
-#endif
-  } while (hash[j][0] == '-' && count++ < 2 * ch->entries);
-  while (hash[j][0] == '-')
-    j = (j + 1) % ch->entries;
-  sprintf(ch->challenge, "%03d", j);
+  strncpy(ch->challenge, hbuf + j*hbuflen, challen);
   ch->selection[0] = j;
-  strcpy(ch->hash[0], hash[j]);
+  strncpy(ch->hash[0], hbuf + j*hbuflen + challen, OTPW_HLEN);
+  ch->hash[0][OTPW_HLEN] = 0;
+
+  if (ch->flags & OTPW_NOLOCK) {
+    /* we were told not to worry about locking */
+    ch->passwords = 1;
+    goto cleanup;
+  }
 
   count = 0;
   do {
     repeat = 0;
-
+    
     /* try to get a lock on this one */
     if (symlink(ch->challenge, OTPW_LOCK) == 0) {
       /* ok, we got the lock */
@@ -225,7 +240,7 @@ void otpw_prepare(struct challenge *ch, struct passwd *user)
     
     if (lstat(OTPW_LOCK, &lbuf) == 0) {
       if (time(NULL) - lbuf.st_mtime > 60 * 60 * 24) {
-	/* remove a stale lock after 24h as the login should have timed out */
+	/* remove a stale lock after 24h, login should have timed out */
 	unlink(OTPW_LOCK);
 	repeat = 1;
       }
@@ -236,21 +251,15 @@ void otpw_prepare(struct challenge *ch, struct passwd *user)
       ch->challenge[0] = 0;
       goto cleanup;
     }
-
+    
   } while (repeat && ++count < 5);
   ch->challenge[0] = 0;
-
+  
   /* ok, there is already a fresh lock, so someone is currently logging in */
-  locked = -1;
-  i = readlink(OTPW_LOCK, line, sizeof(line)-1);
+  i = readlink(OTPW_LOCK, lock, sizeof(lock)-1);
   if (i > 0) {
-    line[i] = 0;
-    if (line[0] >= '0' && line[0] <= '9' &&
-	line[1] >= '0' && line[1] <= '9' &&
-	line[2] >= '0' && line[2] <= '9' &&
-	line[3] == 0)
-      locked = atoi(line);
-    else {
+    lock[i] = 0;
+    if ((int) strlen(lock) != challen) {
       /* lock symlink seems to have been corrupted */
       DEBUG_LOG("Removing corrupt lock symlink.");
       unlink(OTPW_LOCK);
@@ -259,11 +268,11 @@ void otpw_prepare(struct challenge *ch, struct passwd *user)
     DEBUG_LOG("Could not read lock symlink.");
     goto cleanup;
   }
-
+  
   /* now we generate OTPW_MULTI challenges */
   if (ch->remaining < OTPW_MULTI+1 || ch->remaining < 10) {
     DEBUG_LOG("%d remaining passwords are not enough for "
-	    "multi challenge.", ch->remaining);
+	      "multi challenge.", ch->remaining);
     goto cleanup;
   }
   while (ch->passwords < OTPW_MULTI &&
@@ -274,21 +283,20 @@ void otpw_prepare(struct challenge *ch, struct passwd *user)
       /* pick a random entry */
       rbg_iter(r);
       j = *((unsigned int *) r) % ch->entries;
-      /* test whether we had this one already */
-      repeat = 0;
-      for (i = 0; i < ch->passwords; i++)
-	repeat |= (j == ch->selection[i]);
-    } while ((hash[j][0] == '-' || j == locked || repeat) &&
+    } while ((hbuf[j*hbuflen] == '-' ||
+	      !strncmp(hbuf + j*hbuflen + challen, lock, challen)) &&
 	     count++ < 2 * ch->entries);
     /* fallback scan for remaining password */
-    while (hash[j][0] == '-' || j == locked)
+    while (hbuf[j*hbuflen] == '-' || 
+	   !strncmp(hbuf + j*hbuflen + challen, lock, challen))
       j = (j + 1) % ch->entries;
     /* add password j to multi challenge */
-    sprintf(ch->challenge + strlen(ch->challenge), "%s%03d",
-	    ch->passwords ? "/" : "", j);
-    strcpy(ch->hash[ch->passwords], hash[j]);
+    sprintf(ch->challenge + strlen(ch->challenge), "%s%.*s",
+	    ch->passwords ? "/" : "", challen, hbuf + j*hbuflen);
+    strncpy(ch->hash[ch->passwords], hbuf + j*hbuflen + challen, hlen);
+    ch->hash[ch->passwords][hlen] = 0;
     ch->selection[ch->passwords++] = j;
-    hash[j][0] = '-';
+    hbuf[j*hbuflen] = '-'; /* avoid same pw occuring twice per challenge */
   }
 
 cleanup:
@@ -301,8 +309,8 @@ cleanup:
   if (oldgid != -1)
     if (setegid(oldgid))
       DEBUG_LOG("Failed when trying to change egid back to %d", oldgid);
-  if (hash)
-    free(hash);
+  if (hbuf)
+    free(hbuf);
 
   return;
 }
@@ -317,10 +325,11 @@ int otpw_verify(struct challenge *ch, char *password)
   int deleted, clear;
   int olduid = -1;
   int oldgid = -1;
-  char otpw[OTPW_MULTI][OTPW_GROUPS * 4];
+  char *otpw = NULL;
   char line[81];
   unsigned char h[MD_LEN];
   md_state md;
+  int challen, pwlen, hlen;
 
   if (!ch) {
     DEBUG_LOG("!ch");
@@ -330,19 +339,32 @@ int otpw_verify(struct challenge *ch, char *password)
   if (!password || ch->passwords < 1 ||
       ch->passwords > OTPW_MULTI) {
     DEBUG_LOG("otpw_verify(): Invalid parameters or no challenge issued.");
-    goto cleanup;
+    return OTPW_ERROR;
   }
   
+  otpw = calloc(ch->passwords, ch->pwlen);
+  if (!otpw) {
+    DEBUG_LOG("malloc failed");
+    return OTPW_ERROR;
+  }
+
+  /* set effective uid/gid temporarily */
+  olduid = geteuid();
+  oldgid = getegid();
+  if (setegid(ch->gid))
+    DEBUG_LOG("Failed when trying to change egid %d -> %d", oldgid, ch->gid);
+  if (seteuid(ch->uid))
+    DEBUG_LOG("Failed when trying to change euid %d -> %d", olduid, ch->uid);
+
   /*
    * Scan in the one-time passwords, eliminating any spurious characters
    * (such as whitespace, control characters) that might have been added
    * accidentally
    */
   l = strlen(password) - 1;
-  memset(otpw, 0, OTPW_GROUPS * 4 * ch->passwords);
   for (i = ch->passwords-1; i >= 0 && l >= 0; i--) {
-    for (j = OTPW_GROUPS * 4 - 1; j >= 0 && l >= 0; j--) {
-      while (!otpw[i][j] && l >= 0) {
+    for (j = ch->pwlen - 1; j >= 0 && l >= 0; j--) {
+      while (!otpw[i*ch->pwlen + j] && l >= 0) {
 	/* remove DEL/BS characters */
 	deleted = 0;
 	while (l >= 0 &&
@@ -355,11 +377,11 @@ int otpw_verify(struct challenge *ch, char *password)
 	}
 	if (l < 0) break;
 	if (password[l] == 'l' || password[l] == '1' || password[l] == '|')
-	  otpw[i][j] = 'I';
+	  otpw[i*ch->pwlen + j] = 'I';
 	else if (password[l] == '0')
-	  otpw[i][j] = 'O';
+	  otpw[i*ch->pwlen + j] = 'O';
 	else if (password[l] == '\\')
-	  otpw[i][j] = '/';
+	  otpw[i*ch->pwlen + j] = '/';
 	else if ((password[l] >= 'A' && password[l] <= 'Z') ||
 		 (password[l] >= 'a' && password[l] <= 'z') ||
 		 (password[l] >= '2' && password[l] <= '9') ||
@@ -368,11 +390,11 @@ int otpw_verify(struct challenge *ch, char *password)
 		 password[l] == '=' ||
 		 password[l] == '+' ||
 		 password[l] == '/')
-	  otpw[i][j] = password[l];
+	  otpw[i*ch->pwlen + j] = password[l];
 	l--;
       }
     }
-    DEBUG_LOG("Password %d = '%.*s'", i, OTPW_GROUPS * 4, otpw[i]);
+    DEBUG_LOG("Password %d = '%.*s'", i, ch->pwlen, otpw + i*ch->pwlen);
   }
   if (i >= 0 || j >= 0) {
     DEBUG_LOG("Entered password was too short.");
@@ -389,10 +411,10 @@ int otpw_verify(struct challenge *ch, char *password)
     /* feed prefix password into hash function */
     md_add(&md, password, l);
     /* feed one-time password into hash function */
-    md_add(&md, otpw[i], OTPW_GROUPS * 4);
+    md_add(&md, otpw + i*ch->pwlen, ch->pwlen);
     /* transform hash result into the base64 form used in OTPW_FILE */
     md_close(&md, h);
-    conv_base64(line, h, 3);
+    conv_base64(line, h, OTPW_HLEN);
     DEBUG_LOG("hash(password): '%s', hash from file: '%s'",
 	   line, ch->hash[i]);
     if (strcmp(line, ch->hash[i])) {
@@ -406,14 +428,6 @@ int otpw_verify(struct challenge *ch, char *password)
   result = OTPW_OK;
   DEBUG_LOG("Entered password(s) are ok.");
 
-  /* set effective uid/gid temporarily */
-  olduid = geteuid();
-  oldgid = getegid();
-  if (setegid(ch->gid))
-    DEBUG_LOG("Failed when trying to change egid %d -> %d", oldgid, ch->gid);
-  if (seteuid(ch->uid))
-    DEBUG_LOG("Failed when trying to change euid %d -> %d", olduid, ch->uid);
-
   /* Now overwrite the used passwords in OTPW_FILE */
   if (!(f = fopen(OTPW_FILE, "r+"))) {
     DEBUG_LOG("Failed getting write access to '" OTPW_FILE "': %s",
@@ -423,13 +437,12 @@ int otpw_verify(struct challenge *ch, char *password)
   /* check header */
   if (!fgets(line, sizeof(line), f) ||
       strcmp(line, OTPW_MAGIC) ||
-      !fgets(line, sizeof(line), f)) {
+      !fgets(line, sizeof(line), f) ||
+      sscanf(line, "%d%d%d%d\n", &entries,
+	     &challen, &hlen, &pwlen) != 4 ||
+      entries != ch->entries || pwlen != ch->pwlen ||
+      hlen != OTPW_HLEN || challen < 1 || challen > 60) {
     DEBUG_LOG("Overwrite failed because of header mismatch.");
-    goto writefail;
-  }
-  entries = atoi(line);
-  if (entries < 1 || entries > 999) {
-    DEBUG_LOG("Overwrite failed because of wrong number of entries.");
     goto writefail;
   }
   for (i = 0; i < entries; i++) {
@@ -439,7 +452,9 @@ int otpw_verify(struct challenge *ch, char *password)
 	clear = 1;
     if (clear) {
       fseek(f, 0L, SEEK_CUR);
-      fprintf(f, "------------\n");
+      for (l = 0; l < challen + hlen; l++)
+	fputc('-', f);
+      fputc('\n', f);
       fseek(f, 0L, SEEK_CUR);
       ch->remaining--;
     } else
@@ -462,8 +477,11 @@ int otpw_verify(struct challenge *ch, char *password)
   if (f)
     fclose(f);
   /* remove lock */ 
-  if (ch->locked)
-    unlink(OTPW_LOCK);
+  if (ch->locked) {
+    DEBUG_LOG("Removing lock file");
+    if (unlink(OTPW_LOCK))
+      DEBUG_LOG("Failed when trying to unlink lock file: %s", strerror(errno));
+  }
   /* restore uid/gid */
   if (olduid != -1)
     if (seteuid(olduid))
@@ -473,6 +491,9 @@ int otpw_verify(struct challenge *ch, char *password)
       DEBUG_LOG("Failed when trying to change egid back to %d", oldgid);
   /* make sure, we are not called a second time */
   ch->passwords = 0;
+
+  if (otpw)
+    free(otpw);
 
   return result;
 }
