@@ -3,10 +3,12 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: demologin.c,v 1.3 2003-06-19 19:49:01 mgk25 Exp $
+ * $Id: demologin.c,v 1.4 2003-06-20 08:36:48 mgk25 Exp $
  */
 
 #define _XOPEN_SOURCE     /* to get crypt() from <unistd.h> */
+
+#define SHADOW_PW         /* define if the shadow password system is used */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -112,6 +114,8 @@ int main(int argc, char **argv)
 #ifdef SHADOW_PW
     spwd = getspnam(username);
     if (pwd && spwd) pwd->pw_passwd = spwd->sp_pwdp;
+    if (geteuid() != 0)
+      fprintf(stderr, "Shadow password access requires root priviliges.\n");
 #endif
     if (!pwd || strcmp(crypt(password, pwd->pw_passwd), pwd->pw_passwd))
       printf("Login incorrect\n");

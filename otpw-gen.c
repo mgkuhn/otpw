@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw-gen.c,v 1.4 2003-06-19 19:49:01 mgk25 Exp $
+ * $Id: otpw-gen.c,v 1.5 2003-06-20 08:36:48 mgk25 Exp $
  */
 
 #include <stdio.h>
@@ -22,8 +22,9 @@
 #include "md.h"
 
 
-#define NL "\r\n"        /* new line sequence in password list output */
-
+#define NL "\r\n"               /* new line sequence in password list output */
+#define HEADER_LINES  4       /* lines printed in addition to password lines */
+#define MAX_PASSWORDS 1000                /* maximum length of password list */
 
 /* add the output and time of a shell command to message digest */
 
@@ -153,7 +154,7 @@ int main(int argc, char **argv)
 
   unsigned char r[MD_LEN], h[MD_LEN];
   md_state md;
-  int i, j;
+  int i, j, k;
   struct passwd *pwd = NULL;
   FILE *f;
   char timestr[81], hostname[81], password1[81], password2[81];
@@ -181,23 +182,31 @@ int main(int argc, char **argv)
 	    exit(1);
 	  }
           newotpws = atoi(argv[i]);
-	  if (newotpws < 0 || newotpws > 1000) {
-	    fprintf(stderr, "Specify not more than 1000 new passwords!");
+	  if (newotpws < 0 || newotpws > MAX_PASSWORDS) {
+	    fprintf(stderr, "Specify not more than %d new passwords!\n",
+		    MAX_PASSWORDS);
 	    exit(1);
 	  }
           j = -1;
           break;
         case 'l':
 	  if (++i >= argc) {
-	    fprintf(stderr, "Specify number of lines after option -l "
+	    fprintf(stderr, "Specify number of lines output after option -l "
 		    "(e.g., \"-l 50\")!\n");
 	    exit(1);
 	  }
-          newotpws = (atoi(argv[i]) - 4) * pw_per_line;
-	  if (newotpws < 0 || newotpws > 1000) {
-	    fprintf(stderr, "Specify not more than %d lines or 1000 "
-		    "new passwords!", (1000 + pw_per_line - 1) / pw_per_line
-		    - 4);
+	  k = atoi(argv[i]);
+	  if (k <= HEADER_LINES) {
+	    fprintf(stderr, "Specify not less than %d lines "
+		    "(to leave room for header)!\n", HEADER_LINES + 1);
+	    exit(1);
+	  }
+          newotpws = (k - HEADER_LINES) * pw_per_line;
+	  if (newotpws < 0 || newotpws > MAX_PASSWORDS) {
+	    fprintf(stderr, "Specify not more than %d lines or %d "
+		    "new passwords!\n",
+		    (MAX_PASSWORDS + pw_per_line - 1) / pw_per_line
+		    + HEADER_LINES, MAX_PASSWORDS);
 	    exit(1);
 	  }
           j = -1;
