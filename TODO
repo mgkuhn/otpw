@@ -1,4 +1,3 @@
-- otpw-option to suppress random password order
-- otpw-option to provide password seed such that passwords can
-  be computed by the other side
-- otpw-option to computer password based on seed and number 
+- otpw-gen option to generate passwords from a single randomly generated
+  key, which will be printed to stderr
+- otpw-gen option to reprint password list from generating key
