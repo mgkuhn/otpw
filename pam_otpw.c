@@ -12,12 +12,13 @@
  * Inspired by pam_pwdfile.c by Charl P. Botha <cpbotha@ieee.org>
  * and pam_unix/support.c (part of the standard PAM distribution)
  *
- * $Id: pam_otpw.c,v 1.2 2003-06-20 13:58:58 mgk25 Exp $
+ * $Id: pam_otpw.c,v 1.3 2003-06-24 20:42:43 mgk25 Exp $
  */
 
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <syslog.h>
@@ -29,7 +30,7 @@
 #include "otpw.h"
 
 #ifdef DEBUG
-# define D(a) a
+# define D(a) if (debug) { a; }
 #else
 # define D(a)
 #endif
@@ -73,7 +74,8 @@ void log_message(int priority, pam_handle_t *pamh, const char *format, ...)
  */
 static int converse(pam_handle_t *pamh, int nargs,
 		    struct pam_message **message,
-		    struct pam_response **response)
+		    struct pam_response **response,
+		    int debug)
 {
   int retval;
   struct pam_conv *conv;
@@ -81,17 +83,21 @@ static int converse(pam_handle_t *pamh, int nargs,
   /* get pointer to conversation function */
   retval = pam_get_item(pamh, PAM_CONV, (const void **) &conv);
   if (retval != PAM_SUCCESS) {
-    log_message(LOG_ERR, pamh,"no conversation function: %s",
+    log_message(LOG_ERR, pamh, "no conversation function: %s",
 		pam_strerror(pamh, retval));
     return retval;
   }
   
+  D(log_message(LOG_DEBUG, pamh, "calling conversation function"));
+
   /* call conversation function */
   retval = conv->conv(nargs, (const struct pam_message **) message,
 		      response, conv->appdata_ptr);
 
+  D(log_message(LOG_DEBUG, pamh, "conversation function returned %d", retval));
+
   if (retval != PAM_SUCCESS) {
-    log_message(LOG_WARNING, pamh,"conversation function failed: %s",
+    log_message(LOG_WARNING, pamh, "conversation function failed: %s",
 		pam_strerror(pamh, retval));
   }
 
@@ -102,6 +108,7 @@ static int converse(pam_handle_t *pamh, int nargs,
  * to make sure that otpw_verify() gets a chance to remove locks */
 static void cleanup(pam_handle_t *pamh, void *data, int err)
 {
+  int debug = ((struct challenge *) data)->flags & OTPW_DEBUG;
   D(log_message(LOG_DEBUG, pamh,"cleanup() called, data=%p, err=%d",
 		data, err));
   if (((struct challenge *) data)->passwords)
@@ -115,7 +122,7 @@ static void cleanup(pam_handle_t *pamh, void *data, int err)
  * (based on _set_auth_tok from pam_pwdfile.c, originally based
  * on pam_unix/support.c but that no longer seems to exist)
  */
-static int get_response(pam_handle_t *pamh, char *challenge)
+static int get_response(pam_handle_t *pamh, char *challenge, int debug)
 {
   int retval;
   volatile char *p;
@@ -133,7 +140,7 @@ static int get_response(pam_handle_t *pamh, char *challenge)
   resp = NULL;
   
   /* call conversation function */
-  if ((retval = converse(pamh, 1, pmsg, &resp)) != PAM_SUCCESS) {
+  if ((retval = converse(pamh, 1, pmsg, &resp, debug)) != PAM_SUCCESS) {
     /* converse has already output a warning log message here */
     return retval;
   }
@@ -163,7 +170,8 @@ static int get_response(pam_handle_t *pamh, char *challenge)
 /*
  * Display a notice (err==0) or error message (err==1) to the user
  */
-static int display_notice(pam_handle_t *pamh, int err, char *format, ...)
+static int display_notice(pam_handle_t *pamh, int err, int debug,
+			  char *format, ...)
 {
   int retval;
   struct pam_message msg, *pmsg[1];
@@ -183,7 +191,7 @@ static int display_notice(pam_handle_t *pamh, int err, char *format, ...)
   resp = NULL;
   
   /* call conversation function */
-  if ((retval = converse(pamh, 1, pmsg, &resp)) != PAM_SUCCESS) {
+  if ((retval = converse(pamh, 1, pmsg, &resp, debug)) != PAM_SUCCESS) {
     /* converse has already output a warning log message here */
     return retval;
   }
@@ -208,14 +216,21 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
   char *password;
   struct passwd *pwd;
   struct challenge *ch = NULL;
+  int i, debug = 0, otpw_flags = 0;
 
-  D(log_message(LOG_DEBUG, pamh, "pam_sm_authenticate called"));
+  /* parse option flags */
+  for (i = 0; i < argc; i++) {
+    if (!strcmp(argv[i], "debug")) {
+      debug = 1;
+      otpw_flags |= OTPW_DEBUG;
+    } else if (!strcmp(argv[i], "nolock")) {
+      otpw_flags |= OTPW_NOLOCK;
+    }
+  }
+
+  D(log_message(LOG_DEBUG, pamh, "pam_sm_authenticate called, flags=%d",
+    flags));
   
-  /* ignore arguments */
-  (void) flags;
-  (void) argc;
-  (void) argv;
-
   /* get user name */
   retval = pam_get_user(pamh, &username, "login: ");
   if (retval == PAM_CONV_AGAIN)
@@ -252,7 +267,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
   }
 
   /* prepare OTPW challenge */
-  otpw_prepare(ch, pwd);
+  otpw_prepare(ch, pwd, otpw_flags);
 
   D(log_message(LOG_DEBUG, pamh, "challenge: %s", ch->challenge));
   if (ch->passwords < 1) {
@@ -263,7 +278,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
   }
 
   /* Issue challenge, get response */
-  retval = get_response(pamh, ch->challenge);
+  retval = get_response(pamh, ch->challenge, debug);
   if (retval != PAM_SUCCESS) {
     log_message(LOG_ERR, pamh,"get_response() failed: %s",
 		pam_strerror(pamh, retval));
@@ -306,8 +321,6 @@ PAM_EXTERN int pam_sm_setcred(pam_handle_t *pamh, int flags,
   (void) argc;
   (void) argv;
 
-  D(log_message(LOG_DEBUG, pamh, "pam_sm_setcred called"));
-
   /* NOP */
 
   return PAM_SUCCESS;
@@ -319,9 +332,13 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *pamh, int flags,
 {
   struct challenge *ch = NULL;
   int retval;
+  int i, debug = 0;
 
-  (void) argc;
-  (void) argv;
+  /* parse option flags */
+  for (i = 0; i < argc; i++) {
+    if (!strcmp(argv[i], "debug"))
+      debug = 1;
+  }
 
   D(log_message(LOG_DEBUG, pamh, "pam_sm_open_session called, flags=%d",
 		flags));
@@ -333,7 +350,7 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *pamh, int flags,
   }
 
   if (!(flags & PAM_SILENT)) {
-    display_notice(pamh, 0, 
+    display_notice(pamh, 0, debug,
 		   "Remaining one-time passwords: %d of %d%s",
 		   ch->remaining, ch->entries,
 		   (ch->remaining < ch->entries/2) || (ch->remaining < 20) ?
@@ -351,8 +368,6 @@ PAM_EXTERN int pam_sm_close_session(pam_handle_t *pamh, int flags,
   (void) flags;
   (void) argc;
   (void) argv;
-
-  D(log_message(LOG_DEBUG, pamh, "pam_sm_close_session called"));
 
   /* NOP */
 
