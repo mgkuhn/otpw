@@ -1,0 +1,25 @@
+
+OTPW revision history
+---------------------
+
+Changes in version 1.1 (2003-06-19)
+
+  - added pam_otpw module (with assistance from Steven Murdoch)
+
+Changes in version 1.2 (2003-08-31)
+
+  - added English 4-letter-word password option
+
+  - converted several compile-time options into run-time options
+
+Changes in version 1.3 (2003-09-30)
+
+  - added new option -s to otpw-gen
+
+  - added code to otpw.c to handle a comment line starting with '#'
+    as the second line (this is not yet used by otpw-gen)
+
+  - fixed a string manipulation bug (not security critical)
+    in otpw.c (reported by Nicolas Pougetoux)
+
+  - a few more minor bug fixes and stylistic improvements

@@ -1,0 +1,4 @@
+- otpw-option to suppress random password order
+- otpw-option to provide password seed such that passwords can
+  be computed by the other side
+- otpw-option to computer password based on seed and number 
