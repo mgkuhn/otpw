@@ -8,13 +8,19 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw-l.c,v 1.2 2003-06-19 20:09:22 mgk25 Exp $
+ * $Id: otpw-l.c,v 1.3 2003-06-20 08:36:48 mgk25 Exp $
  */
 
 
 #include <syslog.h>
 
+
+#ifndef DEBUG_LOG
+#  if DEBUG
 extern void log_message(int priority, void *pamh,
 			const char *format, ...);
-#define DEBUG_LOG(...) log_message(LOG_DEBUG, (void *) 0, __VA_ARGS__)
+#    define DEBUG_LOG(...) log_message(LOG_DEBUG, (void *) 0, __VA_ARGS__)
+#  endif
+#endif
+
 #include "otpw.c"
