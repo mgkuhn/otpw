@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: md.c,v 1.4 2003-06-19 17:37:11 mgk25 Exp $
+ * $Id: md.c,v 1.5 2004-03-21 11:31:34 mgk25 Exp $
  */
 
 #include <stdlib.h>

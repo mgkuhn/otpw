@@ -6,7 +6,7 @@
  */
 
 static char const rcsid[] =
-  "$Id: otpw-gen.c,v 1.11 2003-09-30 20:11:32 mgk25 Exp $";
+  "$Id: otpw-gen.c,v 1.12 2004-03-21 11:31:34 mgk25 Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>

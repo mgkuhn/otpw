@@ -3,7 +3,7 @@
 #
 # Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
 #
-# $Id: Makefile,v 1.10 2003-09-30 20:14:27 mgk25 Exp $
+# $Id: Makefile,v 1.11 2004-03-21 11:31:22 mgk25 Exp $
 #
 
 VERSION=1.3
@@ -36,6 +36,9 @@ ship: all clean
 	mv ../otpw-$(VERSION).tar.gz ${HOME}/public_html/download/
 	cp otpw.html otpw.html~
 	mv otpw.html~ ${HOME}/public_html/otpw.html 
+
+install-pam: pam_otpw.so
+	cp $+ /lib/security/
 
 clean:
 	rm -f $(TARGETS) *~ *.o core

@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: md.h,v 1.3 2003-06-19 17:37:11 mgk25 Exp $
+ * $Id: md.h,v 1.4 2004-03-21 11:31:34 mgk25 Exp $
  */
 
 #ifndef MD_H
