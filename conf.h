@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: conf.h,v 1.2 2003-06-16 16:25:06 mgk25 Exp $
+ * $Id: conf.h,v 1.3 2003-06-19 17:43:37 mgk25 Exp $
  */
 
 #ifndef OTPW_CONF_H
@@ -21,8 +21,8 @@
 "PATH=/usr/ucb:/bin:/usr/bin;ps lax", \
 "last | head -50", \
 "uptime;netstat -n;hostname;date;w", \
-"cd $HOME; cat .pgp/randseed.bin .ssh/random_seed .otpw 2>&1", \
-"PATH=/usr/bin/X11/;xwd -root -silent 2>&1||xwd -root 2>&1"
+"cd $HOME; cat .pgp/randseed.bin .ssh/random_seed .otpw 2>&1"
+/* too slow: "PATH=/usr/bin/X11/;xwd -root -silent 2>&1||xwd -root 2>&1" */
 
 /*
  * Environment variable settings for the entropy generating
@@ -56,7 +56,7 @@
  * Reasonable values are 2 (48-bit security) or 3 (72-bit high security).
  */
 
-#define OTPW_GROUPS 3
+#define OTPW_GROUPS 2
 
 /*
  * Number of concatenated passwords requested while another one is locked.
