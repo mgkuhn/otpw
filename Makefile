@@ -3,7 +3,7 @@
 #
 # Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
 #
-# $Id: Makefile,v 1.8 2003-08-31 20:51:34 mgk25 Exp $
+# $Id: Makefile,v 1.9 2003-09-01 16:19:27 mgk25 Exp $
 #
 
 VERSION=1.2
@@ -30,7 +30,7 @@ pam_otpw.so: pam_otpw.o otpw-l.o rmd160.o md.o
 	ld --shared -o $@ $+ -lcrypt -lpam -lpam_misc
 
 ship: all clean
-	ci -l RCS/*
+	ci -sRel -l RCS/*
 	cd .. ; tar cvf otpw-$(VERSION).tar --exclude otpw/RCS otpw ; \
 	gzip -9 otpw-$(VERSION).tar
 	mv ../otpw-$(VERSION).tar.gz ${HOME}/public_html/download/
