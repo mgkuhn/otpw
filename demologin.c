@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: demologin.c,v 1.4 2003-06-20 08:36:48 mgk25 Exp $
+ * $Id: demologin.c,v 1.5 2003-06-24 20:44:51 mgk25 Exp $
  */
 
 #define _XOPEN_SOURCE     /* to get crypt() from <unistd.h> */
@@ -62,7 +62,11 @@ int main(int argc, char **argv)
 
   /* in one-time password mode, set lock and output challenge string */
   if (use_otpw) {
-    otpw_prepare(&ch, pwd);
+#ifdef DEBUG
+    otpw_prepare(&ch, pwd, OTPW_DEBUG);
+#else
+    otpw_prepare(&ch, pwd, 0);
+#endif
     if (!ch.challenge[0]) {
       printf("Sorry, one-time password entry not possible at the moment.\n");
       exit(1);
