@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: conf.h,v 1.4 2003-06-24 20:44:09 mgk25 Exp $
+ * $Id: conf.h,v 1.5 2003-08-31 19:25:45 mgk25 Exp $
  */
 
 #ifndef OTPW_CONF_H
@@ -16,7 +16,7 @@
  */
 
 #define ENTROPY_CMDS \
-"head -c 20 /dev/random 2>&1", \
+"head -c 20 /dev/urandom 2>&1", \
 "ls -lu /etc/. /tmp/. / /usr/. /bin/. /usr/bin/.", \
 "PATH=/usr/ucb:/bin:/usr/bin;ps lax", \
 "last | head -50", \
@@ -70,5 +70,11 @@
  */
 
 #define OTPW_MAGIC "OTPW1\n"
+
+/*
+ * Minimum password entropy [bits] permitted by otpw-gen (option -e)
+ */
+
+#define EMIN 30
 
 #endif

@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: demologin.c,v 1.5 2003-06-24 20:44:51 mgk25 Exp $
+ * $Id: demologin.c,v 1.6 2003-08-31 19:25:45 mgk25 Exp $
  */
 
 #define _XOPEN_SOURCE     /* to get crypt() from <unistd.h> */
@@ -37,13 +37,12 @@ int main(int argc, char **argv)
   struct spwd* spwd;
 #endif
 
-  printf("Append a slash (/) to your user name to activate OTPW.\n\n");
-
   if (argc > 1) {
     /* get user name from command line */
     strncpy(username, argv[1], sizeof(username));
     username[sizeof(username) - 1] = 0;
   } else {
+    printf("Append a slash (/) to your user name to activate OTPW.\n\n");
     /* ask for the user name */
     printf("login: ");
     fgets(username, sizeof(username), stdin);
