@@ -3,12 +3,12 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw.c,v 1.2 2003-06-16 16:25:06 mgk25 Exp $
+ * $Id: otpw.c,v 1.3 2003-06-16 16:28:59 mgk25 Exp $
  */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <errno.h>
 #include <unistd.h>
 #include <pwd.h>

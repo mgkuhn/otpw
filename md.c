@@ -3,9 +3,10 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: md.c,v 1.2 2003-06-16 16:25:06 mgk25 Exp $
+ * $Id: md.c,v 1.3 2003-06-16 16:28:59 mgk25 Exp $
  */
 
+#include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 #include <assert.h>
