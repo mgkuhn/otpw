@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw-gen.c,v 1.7 2003-08-31 19:21:47 mgk25 Exp $
+ * $Id: otpw-gen.c,v 1.8 2003-08-31 20:04:47 mgk25 Exp $
  */
 
 #include <stdio.h>
@@ -704,7 +704,7 @@ int main(int argc, char **argv)
 
   /* print header that uniquely identifies this password list */
   time(&t);
-  strftime(timestr, 80, "%Y-%m-%d %H:%M:%S UTC", gmtime(&t));
+  strftime(timestr, 80, "%Y-%m-%d %H:%M", localtime(&t));
   printf("OTPW list generated %s", timestr);
   if (!gethostname(hostname, sizeof(hostname)))
     printf(" on %.*s", (int) sizeof(hostname), hostname);
@@ -753,7 +753,7 @@ int main(int argc, char **argv)
     memcpy(hbuf + i*HBUFLEN, hbuf + k*HBUFLEN, HBUFLEN);
   }
 
-  printf(NL "%*s" NL, (cols*(CHALLEN + pwchars + 2) - 1)/2 + 49/2,
+  printf(NL "%*s" NL, (cols*(CHALLEN + 1 + pwlen + 2) - 2)/2 + 50/2,
 	 "!!! REMEMBER: Enter the PREFIX PASSWORD first !!!");
 
   fclose(f);
