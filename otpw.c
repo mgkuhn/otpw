@@ -6,7 +6,7 @@
  */
 
 static char const rcsid[] =
-  "$Id: otpw.c,v 1.8 2003-09-01 15:53:55 mgk25 Exp $";
+  "$Id: otpw.c,v 1.9 2003-09-30 20:11:32 mgk25 Exp $";
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -167,14 +167,15 @@ void otpw_prepare(struct challenge *ch, struct passwd *user, int flags)
   if (!fgets(line, sizeof(line), f) ||
       strcmp(line, OTPW_MAGIC) ||
       !fgets(line, sizeof(line), f) ||
+      ((line[0] == '#') && !fgets(line, sizeof(line), f)) ||
       sscanf(line, "%d%d%d%d\n", &ch->entries,
 	     &challen, &hlen, &ch->pwlen) != 4) {
     DEBUG_LOG("Header in '" OTPW_FILE "' wrong!");
     goto cleanup;
   }
-  if (ch->entries < 1 || ch->entries > 999 ||
-      challen < 1 || challen > 60 ||
-      ch->pwlen  < 4 || ch->pwlen * 6 > MD_LEN * 8 ||
+  if (ch->entries < 1 || ch->entries > 9999 ||
+      challen < 1 || (challen + 1) * OTPW_MULTI > (int)sizeof(ch->challenge) ||
+      ch->pwlen < 4 || ch->pwlen > 999 ||
       hlen != OTPW_HLEN) {
     DEBUG_LOG("Header parameters (%d %d %d %d) out of allowed range!",
 	      ch->entries, challen, hlen, ch->pwlen);
@@ -208,6 +209,7 @@ void otpw_prepare(struct challenge *ch, struct passwd *user, int flags)
     goto cleanup;
   }
   strncpy(ch->challenge, hbuf + j*hbuflen, challen);
+  ch->challenge[challen] = 0;
   ch->selection[0] = j;
   strncpy(ch->hash[0], hbuf + j*hbuflen + challen, OTPW_HLEN);
   ch->hash[0][OTPW_HLEN] = 0;
@@ -274,7 +276,7 @@ void otpw_prepare(struct challenge *ch, struct passwd *user, int flags)
     goto cleanup;
   }
   while (ch->passwords < OTPW_MULTI &&
-	 strlen(ch->challenge) < sizeof(ch->challenge) - 10) {
+	 strlen(ch->challenge) < sizeof(ch->challenge) - challen - 2) {
     count = 0;
     /* random scan for remaining password */
     do {
@@ -436,10 +438,12 @@ int otpw_verify(struct challenge *ch, char *password)
   if (!fgets(line, sizeof(line), f) ||
       strcmp(line, OTPW_MAGIC) ||
       !fgets(line, sizeof(line), f) ||
+      ((line[0] == '#') && !fgets(line, sizeof(line), f)) ||
       sscanf(line, "%d%d%d%d\n", &entries,
 	     &challen, &hlen, &pwlen) != 4 ||
       entries != ch->entries || pwlen != ch->pwlen ||
-      hlen != OTPW_HLEN || challen < 1 || challen > 60) {
+      hlen != OTPW_HLEN || challen < 1 ||
+      (challen + 1) * OTPW_MULTI > (int) sizeof(ch->challenge)) {
     DEBUG_LOG("Overwrite failed because of header mismatch.");
     goto writefail;
   }
