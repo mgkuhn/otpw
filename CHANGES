@@ -41,11 +41,14 @@ Changes in version 1.4 (2004-03-??)
 
   - new option -r suggests one random password to stdout, then exists
 
+  - new password format that uses only lowercase letters and digits (-p 3),
+    means to be easy to communicate via voice
+
   - new option -m to generate passwords from a single randomly generated
-    key, which will be printed to stderr.
+    key, which will be printed to stderr
 
   - new option -k to recreate a password list from a master key generated
-    with -m. This does not affect the ~/.otpw file.
+    with -m. This does not affect the ~/.otpw file
 
   - new options -E and -P to control the entropy and form of the
-    master key generated with -m.
+    master key generated with -m
