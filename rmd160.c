@@ -16,9 +16,6 @@
 \********************************************************************/
 
 /*  header files */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "rmd160.h"      
 
 /********************************************************************/
@@ -241,7 +238,7 @@ void MDfinish(dword *MDbuf, byte *strptr, dword lswlen, dword mswlen)
    dword        i;                                 /* counter       */
    dword        X[16];                             /* message words */
 
-   memset(X, 0, 16*sizeof(dword));
+   for (i=0; i<16; X[i++]=0);
 
    /* put bytes from strptr into X */
    for (i=0; i<(lswlen&63); i++) {
@@ -255,7 +252,7 @@ void MDfinish(dword *MDbuf, byte *strptr, dword lswlen, dword mswlen)
    if ((lswlen & 63) > 55) {
       /* length goes to next block */
       compress(MDbuf, X);
-      memset(X, 0, 16*sizeof(dword));
+      for (i=0; i<16; X[i++]=0);
    }
 
    /* append length in bits*/
