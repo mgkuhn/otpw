@@ -3,10 +3,10 @@
 #
 # Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
 #
-# $Id: Makefile,v 1.9 2003-09-01 16:19:27 mgk25 Exp $
+# $Id: Makefile,v 1.10 2003-09-30 20:14:27 mgk25 Exp $
 #
 
-VERSION=1.2
+VERSION=1.3
 
 CC=gcc
 CFLAGS=-O -ggdb -W -Wall
