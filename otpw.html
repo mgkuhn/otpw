@@ -1,8 +1,8 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<!-- $Id: otpw.html,v 1.4 2003-06-16 16:25:06 mgk25 Exp $ -->
+<!-- $Id: otpw.html,v 1.5 2003-06-19 19:48:00 mgk25 Exp $ -->
 <HTML>
 <HEAD>
-<TITLE>OTPW - A One-Time Password Login Package</TITLE>
+<TITLE>OTPW - a one-time password login package</TITLE>
 <META NAME="keywords" CONTENT="computer security, S/KEY, Ssh,
 secure login, password sniffing, eavesdropping, OTPW">
 <META NAME="description" CONTENT="Free implementation of a one-time
@@ -10,27 +10,28 @@ password scheme allowing remote access from untrusted terminals.">
 </HEAD>
 
 <BODY BGCOLOR="#EFEFEF" TEXT="#000000">
-<H1>OTPW - A One Time Password Login Capability</H1>
+<H1>OTPW - A one-time password login package</H1>
 
 <P><A HREF="http://www.cl.cam.ac.uk/~mgk25/">Markus Kuhn</A>, Computer
 Laboratory, University of Cambridge
 
 <P><A HREF="http://www.cl.cam.ac.uk/~mgk25/otpw.html">Latest release</A>:
-Version 1.0, 1998-01-20
+Version 1.1, 2003-06-19
 
 <H2>Abstract</H2>
 
 The OTPW package consists of the one-time-password generator
-<CITE>newpass</CITE> plus two verification routines
+<CITE>otpw-gen</CITE> plus two verification routines
 <CITE>otpw_prepare()</CITE> and <CITE>otpw_verify()</CITE> that can
 easily be added to programs such as <CITE>login</CITE> or
-<CITE>ftpd</CITE> on POSIX systems. Login software extended this way
-will allow reasonably secure user authentication over insecure network
-lines. The user carries a password list on paper. The scheme is
-designed to be robust against theft of the paper list and
-race-for-the-last-letter attacks. Cryptographic hash values of the
-one-time passwords are stored for verification in the user's home
-directory.
+<CITE>ftpd</CITE> on POSIX systems. For platforms that support the
+Pluggable Authentication Method (PAM) interface, a suitable wrapper is
+included as well. Login software extended this way will allow
+reasonably secure user authentication over insecure network lines. The
+user carries a password list on paper. The scheme is designed to be
+robust against theft of the paper list and race-for-the-last-letter
+attacks. Cryptographic hash values of the one-time passwords are
+stored for verification in the user's home directory.
 
 <H2>Introduction</H2>
 
@@ -47,8 +48,10 @@ confidentiality.
 <P>However, traveling computer users often want to connect to their
 home system via untrusted terminals at conference hotels, other
 universities, and airports, where trusted encryption software is not
-available. A loss of confidentiality is often acceptable in these
-situations for the session content, but never for the login passwords.
+available. Even Secure Shell does not protect against keyboard
+eavesdropping software on the untrusted terminal. A loss of
+confidentiality is often acceptable in these situations for the
+session content, but not for reusable login passwords.
 One-time-password schemes avoid the transmission of authentication
 secrets that are of any value after they have been used. This provides
 a reasonable level of protection against the widely encountered
@@ -63,93 +66,90 @@ of protection is required.
 <P>A widely known one-time-password scheme is <A
 HREF="ftp://ftp.cert.dfn.de/pub/tools/password/SKey/">S/KEY</A>
 [Hal94, HM96]. OTPW is not compatible with and is not derived from
-S/KEY or <A HREF=
+either S/KEY or <A HREF=
 "ftp://ftp.cert.dfn.de/pub/tools/password/nrl-opie/">OPIE</A>. It is a
-completely independent and different design, of which I believe that
-it fulfils my functional and security requirements better.
+completely independent and different design, which I believe fulfils
+my functional and security requirements better.
 
 <H2>How it works</H2>
 
 <P>One-time password authentication with the OTPW package is
-accomplished via a file <CITE>.otpw</CITE> that is located in the
-user's home directory. No state is kept in any system-wide files,
-therefore OTPW does not introduce any new setuid root programs. As
-long as a user does not have <CITE>.otpw</CITE> in her home directory,
-the one-time-password facility has not been activated for her.
+accomplished via a file <CITE>.otpw</CITE> located in the user's home
+directory. No state is kept in any system-wide files, therefore OTPW
+does not introduce any new setuid root programs. As long as a user
+does not have <CITE>.otpw</CITE> in her home directory, the
+one-time-password facility has not been activated for her.
 
 <P>A user who wants to setup the one-time-password capability just
-executes the <CITE>newpass</CITE> program. The program will ask for a
+executes the <CITE>otpw-gen</CITE> program. The program will ask for a
 <EM>prefix password</EM> that the user has to select and memorize and
 it will then write to standard output a password list such as:
 
 <PRE>
-  OTPW list generated 1998-01-20 15:42:26 UTC on sigaba.cl.cam.ac.uk
+  OTPW list generated 2003-06-19 18:19:40 UTC on trillium.cl.cam.ac.uk
 
-  000 dbno vABz B6r2  001 :WnA e/O9 O4g7  002 Dupt CWMo Sk+G  003 L4cZ O=ym rUGs 
-  004 d%6k kVM: 5vDp  005 73Bp :=SU zKRq  006 BNiE aOXU f:F2  007 9EsT SVGX iahy 
-  008 YbBd Jh/e QkKw  009 qyQ2 VmZI D7OH  010 3FPY UfU8 Z53C  011 jMKf AU:O JUTM 
-  012 SMF/ EmLn =J6s  013 BcS8 /fN% j7o4  014 YfHi :9Oe c/ze  015 CrdM /UT4 ZLso 
-  016 BO2k fJkU hNn4  017 N=NK dqt/ Nsdo  018 UuGh Cwgn iQ%o  019 wQsZ c/Hy :rgO 
-  020 Iy2Q zKXE au63  021 DjWp R9Kf 32yM  022 pJqk t=CR Xgsi  023 hIEJ v24+ GVyV 
+  000 Cpas FpB/  001 AX7t KvW6  002 /%Lu aFa/  003 9FKf iQRG  004 o4%g KaJN 
+  005 m3Or aroK  006 WQLU xRKf  007 Gjk8 Tmxu  008 33ND D%FU  009 9RAJ KeMJ 
+  010 7ogQ ZL=/  011 fDwy yg3M  012 GCuq oe8U  013 TtdX hEts  014 iHpE d6ig 
+  015 TevJ Ihar  016 qjpt 9Tnk  017 tdcK hBGy  018 qSzp aza:  019 EtQX 6ITs 
+  020 XVPm qq:5  021 dkPv ftGB  022 %YKp IOXN  023 +8q4 cxNT  024 kFdt 7GgS 
+  025 BhzG 6Kb+  026 r2vu TE3R  027 D/rB POw7  028 af9o e/tL  029 3CoO ZI:X 
 
-  !!! DO NOT FORGET TO ENTER PREFIX PASSWORD FIRST !!!
+              !!! REMEMBER: Enter the PREFIX PASSWORD first !!!
 </PRE>
 
-<P>Normally the output of <CITE>newpass</CITE> should be sent directly to
+<P>Normally the output of <CITE>otpw-gen</CITE> should be sent directly to
 the printer as in
 
 <PRE>
-  newpass | lpr
+  otpw-gen | lpr
 </PRE>
 
 <P>or should be first formatted with an ASCII to PostScript converter
 where necessary.
 
-<P>Get the printed list immediately from the printer, fold it, and
+<P>Fetch the printed list immediately from the printer, fold it, and
 keep it with you. The list shows the machine name and the creation
 time to allow users to find the latest list for the right machine. It
-does not show the user's name, as nobody is supposed to have the list
-of anyone else. Only a single list is required for a set of networked
+does not show the user's name, because nobody is supposed to have the
+list of anyone else, but printer drivers such as <CITE>a2ps</CITE>
+might add it. Only a single list is required for a set of networked
 machines on which the user has a common home directory.
 
-<P>By default, <CITE>newpass</CITE> generates 60 lines of output, but
+<P>By default, <CITE>otpw-gen</CITE> generates 60 lines of output. Use
 the command line options <SAMP>-l</SAMP>&nbsp;<VAR>lines</VAR> or
-<SAMP>-n</SAMP>&nbsp;<VAR>passwords</VAR> allow to specify the length
-of the output. No more than 1000 passwords will be generated at a
-time.
+<SAMP>-n</SAMP>&nbsp;<VAR>passwords</VAR> to specify the length of the
+output. No more than 1000 passwords will be generated at a time.
 
-<P>When a one-time-password authentication is desired instead of a
-normal authentication at login, then the user just appends a slash (/)
-to the user name. The password prompt will then be preceded by a
-3-digit password number. The password that has now to be entered is
-the prefix password that was given to <CITE>newpass</CITE>, followed
-directly (without hitting return between) by the password with the
-requested number from the printed password list:
+<P>Where one-time-password authentication is used, the password prompt
+will be followed by a 3-digit password number. Enter first the prefix
+password that was given to <CITE>otpw-gen</CITE>, followed directly
+(without hitting return between) by the password with the requested
+number from the printed password list:
 
 <PRE>
   login: <B>kuhn/</B>
-  013 Password: <B>geHeimBcS8/fN%j7o4</B>
+  Password 013: <B>geHeimTtdXhEts</B>
 </PRE>
 
 <P>In this example, <SAMP>geHeim</SAMP> was the prefix password. The
 spaces in the password list are just there to increase readability and
-do not have to be entered by the user.
+can be dropped.
 
 <P>A clever attacker might observe the password being entered and
 might try to use the fact that computers can send data much faster
 than users can finish entering passwords. In the several hundred
-milliseconds that the user needs to enter the last character and press
-the enter key, an attacker could simultaneously open 64 connections to
-the machine and simply try all 64 possible last characters. This way
-an attacker could get a login faster than the user.
+milliseconds that the user needs to press the return key after the
+last character, an attacker could on a parallel connection to the same
+machine send the code of the return key faster than the user.
 
-<P>To prevent such a race-for-the-last-letter attack, any login
-attempt that is taking place concurrently with another attempt will
-require three one-time passwords to be entered:
+<P>To prevent such a race-for-the-last-key attack, any login attempt
+that is taking place concurrently with another attempt will require
+three one-time passwords to be entered:
 
 <PRE>
   login: <B>kuhn/</B>
-  012/021/010 Password: <B>geHeimSMF/EmLn=J6sDjWpR9Kf32yM3FPYUfU8Z53C</B>
+  Password 012/021/010: <B>geHeimGCuqoe8UdkPvftGB7ogQ ZL=/</B>
 </PRE>
 
 <P>This might look inconvenient at first, but remember that three
@@ -161,12 +161,12 @@ concurrent login attempts. Only the first requested single password
 will be locked, not any of the requested triples. This way, the
 three-password method ensures that an attacker cannot disable the OTPW
 mechanism by locking all passwords. The triple challenge ensures that
-in the order of a million network connections would be necessary to
-perform a race attack, which is not practical. The OTPW package
-creates a symbolic link <SAMP>.otpw.lock</SAMP> in the user's home
-directory to lock the first requested password while its input is
-pending. If a system crash created a stale lock, it will be removed
-after 24 hours.
+many ten thousand network connections would be necessary to perform a
+race attack on the same password triple, which is not practical. The
+OTPW package creates a symbolic link <SAMP>.otpw.lock</SAMP> in the
+user's home directory to lock the first requested password while its
+input is pending. If a system crash created a stale lock, it will be
+removed after 24 hours.
 
 <P>The <SAMP>.otpw</SAMP> file looks like
 
@@ -212,18 +212,18 @@ http://www.cl.cam.ac.uk/~mgk25/download/</A>.
 parameters can be changed. The only item there really worth being
 checked carefully is the <SAMP>ENTROPY_CMDS</SAMP> macro. It contains
 a list of shell commands, whose output is used to initialize the
-random number generator in <CITE>newpass</CITE>. Make sure that at
+random number generator in <CITE>otpw-gen</CITE>. Make sure that at
 least most of these shell commands actually do work on your system and
 produce an output that is extremely difficult to predict for potential
 attackers. If your operating system has a <SAMP>/dev/random</SAMP> or
 <SAMP>/dev/urandom</SAMP> device that gives access to a good true
 random number generator, then make sure that a command reads and
-outputs around 20 bytes from there. In <SAMP>ENTROPY_ENV</SAMP>, some
+outputs abount 20 bytes from there. In <SAMP>ENTROPY_ENV</SAMP>, some
 environment variables (e.g., <SAMP>PATH</SAMP>) can be set for these
 shell commands.
 
-<P>Just start <CITE>make</CITE> to compile the <CITE>newpass</CITE>
-and <CITE>demologin</CITE> programs. While <CITE>newpass</CITE> can
+<P>Just start <CITE>make</CITE> to compile the <CITE>otpw-gen</CITE>
+and <CITE>demologin</CITE> programs. While <CITE>otpw-gen</CITE> can
 directly be made available to the user, <CITE>demologin</CITE> is only
 an example of the modifications that you have to make to your login
 program to support one-time passwords using OTPW.
@@ -264,7 +264,7 @@ directory will be changed to the user's home directory, and
 <SAMP>otpw_verify()</SAMP> has returned, the condition
 <SAMP>ch.entries > 2 * ch.remaining</SAMP> is true and half of all
 passwords have been used, the user should be remembered to generate a
-new password list by executing <CITE>newpass</CITE>. The security of
+new password list by executing <CITE>otpw-gen</CITE>. The security of
 OTPW is increased if a new password list is created long before all
 passwords on the old list have been used.
 
@@ -274,44 +274,74 @@ in order to access the password file in the home directory. OTPW does
 not use any of the POSIX advisory file locking system calls, as those
 often do not work reliably over network file systems.
 
+<H3>PAM installation</H3>
 
-<H2>Design Rationale</H2>
+<P>If your system supports Pluggable Authentication Modules
+[Mor01,XSSO], then simply compile the shared library
+<CITE>pam_otpw.so</CITE> and copy it to the directory in which other
+PAM modules reside (under Linux usually <SAMP>/lib/security/</SAMP>).
+Then edit the PAM configuration file for the application in which you
+want to use OTPW, as described in your <A
+HREF="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam.html">PAM
+System Administrators' Guide</A>. The <CITE>pam_otpw.so</CITE>
+provides both an authentication and a session component. The
+authentication component asks for and verifies a one-time password,
+the session component prints after each successful login a reminder on
+how many unused passwords you have left.
+
+<P>To use both components when loggin into your system via Secure
+Shell, you might have to add in <SAMP>/etc/pam.d/sshd</SAMP> the lines
+<PRE>
+  auth            required        pam_otpw.so
+  session         optional        pam_otpw.so
+</PRE>
+The <CITE>pam_otpw.so</CITE> module ignores at present any options
+provided.
+
+<P>With <SAMP>OpenSSH 3.4</SAMP> for example, you need to make sure
+that your version has PAM support compiled in, and you will have to
+add in <SAMP>/etc/ssh/sshd_config</SAMP> the lines
+<PRE>
+  UsePrivilegeSeparation          no
+  PAMAuthenticationViaKbdInt      yes
+</PRE>
+
+<H2>Design rationale</H2>
 
 <P>Unlike S/KEY [Hal94, HM96], OTPW is not based on the Lamport scheme
 [Lam77] in which every one-time password is the one-way hash value of
 its successor. Password lists based on the Lamport scheme have the
 problem that if the attacker can see one of the last passwords on the
-list, that then all previous passwords can be calculated from it. We
-also do not store the encrypted passwords as suggested by Rubin
-[Rub96], in order to keep the host free of files with secrets. Both
-proposals aimed to save memory in the host system. Instead, we store
-the one-way hash value of every single password in a potentially
-widely readable file in the user's home directory. For instance, hash
-values of 240 passwords (a typical A4 page) require only a 3134 byte
-long <SAMP>.otpw</SAMP> file of the user's disk quota. This is
-completely negligible in a typical environment (much less than 1 cent
-annual storage cost).
+list, then all previous passwords can be calculated from it. We also
+do not store the encrypted passwords as suggested by Rubin [Rub96], in
+order to keep the host free of files with secrets. Both proposals
+aimed to save memory in the host system. Instead, we store the one-way
+hash value of every single password in a potentially widely readable
+file in the user's home directory. For instance, hash values of 300
+passwords (a typical A4 page) require only a four kilobyte long
+<SAMP>.otpw</SAMP> file, a typically negligible amount of storage
+space.
 
 <P>The passwords are carefully generated random numbers. The random
 number generator is based on the RIPEMD-160 secure hash function
 [DBP96, ISO96]. The random number generator is seeded by hashing
 together the output of various shell commands. These provide
 unpredictability in the form of a system random number seed, access
-times of important system files, usage history of the host, in case of
-an X11 system the screen content, and more. The random state is the
-160-bit output of the hash function. The random state is iterated
-after each use by concatenating the old state with the current
-high-resolution timer output and hashing the result again. The first
-72 bits of the hash output are encoded with a modified base64 [FB96]
-scheme to produce readable passwords, while the remaining 88 bits
-represent the undisclosed internal state of the random number
-generator.
+times of important system files, usage history of the host, and more.
+The random state is the 160-bit output of the hash function. The
+random state is iterated after each use by concatenating the old state
+with the current high-resolution timer output and hashing the result
+again. The first 72 bits of the hash output are encoded with a
+modified base64 [FB96] scheme to produce readable passwords, while the
+remaining 88 bits represent the undisclosed internal state of the
+random number generator.
 
-<P>In many fonts, the characters 0/O or 1/l/I are difficult to
-distinguish, therefore the modified base64 encoding replaces the three
-characters 01l by :=%. If for instance a zero is confused with a
-capital O by the user, the password verification routine will
-automatically correct for this.
+<P>In many fonts, the characters <SAMP>0O</SAMP> or <SAMP>1lI</SAMP>
+are difficult to distinguish, therefore the modified base64 encoding
+replaces the three characters <SAMP>01l</SAMP> by <SAMP>:=%</SAMP>. If
+for instance a zero is confused with a capital <SAMP>O</SAMP> by the
+user, the password verification routine will automatically correct for
+this.
 
 <P>While S/KEY uses sequences of short English words as passwords,
 OTPW uses a base64 encoding, because it allows more passwords to be
@@ -319,7 +349,9 @@ printed on a single page. In addition, an average human spy needs over
 30 seconds to write a 12-character random string into short-term
 memory, which provides a good protection against brief looks that an
 attacker might have on a password list. Lists of short words on the
-other hand are much faster to memorize.
+other hand are much faster to memorize. OTPW can be configured at
+compile time to use either 8 or 12 character passwords with 48 or 72
+bits of entropy, respectively.
 
 <P>The prefix password ensures that neither stealing the password list
 nor eavesdropping the line alone can provide unauthorized access.
@@ -344,7 +376,8 @@ attack while the authorized user finishes password entry.
 
 <P>Special thanks to Kan Zhang (Cambridge) for useful suggestions. The
 RIPEMD-160 routine was provided by Antoon Bosselaers (Katholieke
-Universiteit Leuven).
+Universiteit Leuven). Steven Murdoch (Cambridge) wrote significant
+parts of the PAM wrapper and prepared a test setup.
 
 <H2>References</H2>
 
@@ -383,9 +416,16 @@ Standardization, Geneva, 1996.
 Extensions (MIME) - Part One: Format of Internet Message
 Bodies</A></CITE>, RFC 2045, November 1996.
 
+<P>[Mor01] &nbsp; Andrew G. Morgan:
+<A HREF="http://www.kernel.org/pub/linux/libs/pam/">Linux-PAM</A>.
+
+<P>[XSSO] &nbsp; <A
+HREF="http://www.opengroup.org/pubs/catalog/p702.htm">X/Open Single
+Sign-On Service (XSSO) - Pluggable Authentication</A>. June 1997.
+
 <P><A HREF= "http://www.cl.cam.ac.uk/~mgk25/">Markus Kuhn</A>
 <BR><SMALL>created 1997-11-25 --
-last modified 2003-06-16 --
+last modified 2003-06-19 --
 http://www.cl.cam.ac.uk/~mgk25/otpw.html</SMALL>
 </BODY>
 </HTML>
