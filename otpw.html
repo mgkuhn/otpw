@@ -1,5 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<!-- $Id: otpw.html,v 1.19 2003-11-10 19:58:23 mgk25 Exp $ -->
+<!-- $Id: otpw.html,v 1.20 2003-11-10 20:00:44 mgk25 Exp $ -->
 <HTML>
 <HEAD>
 <TITLE>OTPW - a one-time password login package</TITLE>
@@ -458,6 +458,8 @@ carefully to any password buffers never takes place!
 <p><b>Workaround:</b> None. This needs to be fixed urgently by the
 OpenSSH developers, as it also breaks the proper deallocation of
 buffers with secrets.
+
+<a name="ntpl"></a>
 
 <LI><b>Observation:</b> When used under openssh-3.5p1-11 on Red Hat
 Linux 9 (kernel 2.4.20, glibc 2.3.2), otpw.c:otpw_prepare() has been
