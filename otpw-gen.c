@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw-gen.c,v 1.8 2003-08-31 20:04:47 mgk25 Exp $
+ * $Id: otpw-gen.c,v 1.9 2003-08-31 20:51:34 mgk25 Exp $
  */
 
 #include <stdio.h>
@@ -242,6 +242,8 @@ char word[2048][4] = {
   "zest","zeta","zeus","zinc","zone","zoom","zoos","zzap"
 };
 
+int debug = 0;
+
 /* add the output and time of a shell command to message digest */
 
 void gurgle(md_state *mdp, char *command)
@@ -266,10 +268,9 @@ void gurgle(md_state *mdp, char *command)
   if (len == 0)
     fprintf(stderr, "External entropy source command '%s'\n"
 	    "returned no output.\n", command);
-#ifdef DEBUG
   else
-    fprintf(stderr, "'%s' added %ld bytes.\n", command, len);
-#endif
+    if (debug)
+      fprintf(stderr, "'%s' added %ld bytes.\n", command, len);
   pclose(f);
   gettimeofday(&t, NULL);
   md_add(mdp, (unsigned char *) &t, sizeof(t));
@@ -504,8 +505,8 @@ int main(int argc, char **argv)
     "\t\t\t(low security: <30, default: 48, high security: >60)\n"
     "\t-p0\t\tpasswords from modified base64 encoding (default)\n"
     "\t-p1\t\tpasswords from English 4-letter words\n"
-    "\t-f <filename>\tdestination file for hashes (default: ~/" OTPW_FILE
-    ")\n\n";
+    "\t-f <filename>\tdestination file for hashes (default: ~/" OTPW_FILE ")\n"
+    "\t-d\t\toutput debugging information\n";
 
   unsigned char r[MD_LEN], h[MD_LEN];
   md_state md;
@@ -587,6 +588,9 @@ int main(int argc, char **argv)
           fnout = argv[i];
 	  j = -1;
           break;
+	case 'd':
+	  debug = 1;
+	  break;
 	default:
           fprintf(stderr, usage, version, argv[0]);
           exit(1);
@@ -613,8 +617,9 @@ int main(int argc, char **argv)
   if (rows * cols > 1000)
     rows = 1000 / cols;
 
-  fprintf(stderr, "pwlen=%d, pwchars=%d, emax=%d, cols=%d\n",
-	  pwlen, pwchars, emax, cols);
+  if (debug)
+    fprintf(stderr, "pwlen=%d, pwchars=%d, emax=%d, cols=%d, rows=%d\n",
+	    pwlen, pwchars, emax, cols, rows);
 
   if (!fnout) {
     fnout = OTPW_FILE;
@@ -632,7 +637,7 @@ int main(int argc, char **argv)
   rbg_seed(r);
 
   fprintf(stderr,
-    "If your paper password list is stolen, the thief should not gain\n"
+    "\nIf your paper password list is stolen, the thief should not gain\n"
     "access to your account with this information alone. Therefore, you\n"
     "need to memorize and enter below a prefix password. You will have to\n"
     "enter that each time directly before entering the one-time password\n"

@@ -8,7 +8,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw-l.c,v 1.4 2003-06-24 20:43:29 mgk25 Exp $
+ * $Id: otpw-l.c,v 1.5 2003-08-31 20:51:34 mgk25 Exp $
  */
 
 
@@ -16,12 +16,10 @@
 
 
 #ifndef DEBUG_LOG
-#  if DEBUG
 extern void log_message(int priority, void *pamh,
 			const char *format, ...);
-#    define DEBUG_LOG(...) if (ch->flags & OTPW_DEBUG) \
-                             log_message(LOG_DEBUG, (void *) 0, __VA_ARGS__)
-#  endif
+#define DEBUG_LOG(...) if (ch->flags & OTPW_DEBUG) \
+                         log_message(LOG_DEBUG, (void *) 0, __VA_ARGS__)
 #endif
 
 #include "otpw.c"

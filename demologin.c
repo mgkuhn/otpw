@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: demologin.c,v 1.6 2003-08-31 19:25:45 mgk25 Exp $
+ * $Id: demologin.c,v 1.7 2003-08-31 20:51:34 mgk25 Exp $
  */
 
 #define _XOPEN_SOURCE     /* to get crypt() from <unistd.h> */
@@ -28,20 +28,34 @@
 
 int main(int argc, char **argv)
 {
-  char username[81], password[81];
+  char username[81] = "", password[81];
   struct termios term, term_old;
   int stdin_is_tty = 0, use_otpw, result;
   struct passwd *pwd;
   struct challenge ch;
+  int i, debug = 0;
 #ifdef SHADOW_PW
   struct spwd* spwd;
 #endif
 
-  if (argc > 1) {
-    /* get user name from command line */
-    strncpy(username, argv[1], sizeof(username));
-    username[sizeof(username) - 1] = 0;
-  } else {
+  for (i = 1; i < argc; i++) {
+    if (argv[i][0] == '-')
+      switch (argv[i][1]) {
+      case 'd':
+	debug = 1;
+	break;
+      default:
+	fprintf(stderr, "usage: %s [-d] [username][/]\n", argv[0]);
+	exit(1);
+      }
+    else {
+      /* get user name from command line */
+      strncpy(username, argv[i], sizeof(username));
+      username[sizeof(username) - 1] = 0;
+    }
+  }
+
+  if (!*username) {
     printf("Append a slash (/) to your user name to activate OTPW.\n\n");
     /* ask for the user name */
     printf("login: ");
@@ -61,11 +75,7 @@ int main(int argc, char **argv)
 
   /* in one-time password mode, set lock and output challenge string */
   if (use_otpw) {
-#ifdef DEBUG
-    otpw_prepare(&ch, pwd, OTPW_DEBUG);
-#else
-    otpw_prepare(&ch, pwd, 0);
-#endif
+    otpw_prepare(&ch, pwd, debug ? OTPW_DEBUG : 0);
     if (!ch.challenge[0]) {
       printf("Sorry, one-time password entry not possible at the moment.\n");
       exit(1);

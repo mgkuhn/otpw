@@ -12,7 +12,7 @@
  * Inspired by pam_pwdfile.c by Charl P. Botha <cpbotha@ieee.org>
  * and pam_unix/support.c (part of the standard PAM distribution)
  *
- * $Id: pam_otpw.c,v 1.4 2003-08-31 19:20:17 mgk25 Exp $
+ * $Id: pam_otpw.c,v 1.5 2003-08-31 20:51:34 mgk25 Exp $
  */
 
 #include <stdarg.h>
@@ -29,11 +29,7 @@
 
 #include "otpw.h"
 
-#ifdef DEBUG
-# define D(a) if (debug) { a; }
-#else
-# define D(a)
-#endif
+#define D(a) if (debug) { a; }
 
 #define MODULE_NAME "pam_otpw"
 

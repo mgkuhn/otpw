@@ -3,14 +3,13 @@
 #
 # Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
 #
-# $Id: Makefile,v 1.7 2003-06-24 21:57:51 mgk25 Exp $
+# $Id: Makefile,v 1.8 2003-08-31 20:51:34 mgk25 Exp $
 #
 
-VERSION=1.1b2
+VERSION=1.2
 
 CC=gcc
-#CFLAGS=-O -W
-CFLAGS=-ggdb -DDEBUG -O -W -Wall
+CFLAGS=-O -ggdb -W -Wall
 
 TARGETS=otpw-gen demologin pam_otpw.so
 

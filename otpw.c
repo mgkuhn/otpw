@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw.c,v 1.6 2003-06-24 20:41:22 mgk25 Exp $
+ * $Id: otpw.c,v 1.7 2003-08-31 20:52:18 mgk25 Exp $
  */
 
 #include <stdlib.h>
@@ -23,12 +23,8 @@
 #include "md.h"
 
 #ifndef DEBUG_LOG
-#if DEBUG
 #define DEBUG_LOG(...) if (ch->flags & OTPW_DEBUG) \
                          { fprintf(stderr, __VA_ARGS__); fputc('\n', stderr); }
-#else
-#define DEBUG_LOG(...)
-#endif
 #endif
 
 /*
