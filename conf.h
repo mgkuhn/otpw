@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: conf.h,v 1.3 2003-06-19 17:43:37 mgk25 Exp $
+ * $Id: conf.h,v 1.4 2003-06-24 20:44:09 mgk25 Exp $
  */
 
 #ifndef OTPW_CONF_H
@@ -52,13 +52,6 @@
 #define OTPW_LOCK ".otpw.lock"
 
 /*
- * One-time password is OTPW_GROUPS*4 characters or OTPW_GROUPS*24 bits long.
- * Reasonable values are 2 (48-bit security) or 3 (72-bit high security).
- */
-
-#define OTPW_GROUPS 2
-
-/*
  * Number of concatenated passwords requested while another one is locked.
  * A reasonable value is 3.
  */
@@ -66,9 +59,16 @@
 #define OTPW_MULTI 3
 
 /*
+ * Stored hash is OTPW_HLEN characters or OTPW_HLEN*6 bits long.
+ * A reasonable value is 3 (72 bits).
+ */
+
+#define OTPW_HLEN 12
+
+/*
  * Characteristic first line that allows recognicion of an OTPW file
  */
 
-#define OTPW_MAGIC "OTPW 1.0\n"
+#define OTPW_MAGIC "OTPW1\n"
 
 #endif
