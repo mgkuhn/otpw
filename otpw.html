@@ -1,5 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<!-- $Id: otpw.html,v 1.6 2003-06-20 08:36:48 mgk25 Exp $ -->
+<!-- $Id: otpw.html,v 1.7 2003-08-31 20:26:15 mgk25 Exp $ -->
 <HTML>
 <HEAD>
 <TITLE>OTPW - a one-time password login package</TITLE>
@@ -16,7 +16,7 @@ password scheme allowing remote access from untrusted terminals.">
 Laboratory, University of Cambridge
 
 <P><A HREF="http://www.cl.cam.ac.uk/~mgk25/otpw.html">Latest release</A>:
-Version 1.1, 2003-06-19
+Version 1.2, 2003-08-31
 
 <H2>Abstract</H2>
 
@@ -86,14 +86,14 @@ executes the <CITE>otpw-gen</CITE> program. The program will ask for a
 it will then write to standard output a password list such as:
 
 <PRE>
-  OTPW list generated 2003-06-19 18:19:40 UTC on trillium.cl.cam.ac.uk
+  OTPW list generated 2003-08-31 21:06 on trillium.cl.cam.ac.uk
 
-  000 Cpas FpB/  001 AX7t KvW6  002 /%Lu aFa/  003 9FKf iQRG  004 o4%g KaJN 
-  005 m3Or aroK  006 WQLU xRKf  007 Gjk8 Tmxu  008 33ND D%FU  009 9RAJ KeMJ 
-  010 7ogQ ZL=/  011 fDwy yg3M  012 GCuq oe8U  013 TtdX hEts  014 iHpE d6ig 
-  015 TevJ Ihar  016 qjpt 9Tnk  017 tdcK hBGy  018 qSzp aza:  019 EtQX 6ITs 
-  020 XVPm qq:5  021 dkPv ftGB  022 %YKp IOXN  023 +8q4 cxNT  024 kFdt 7GgS 
-  025 BhzG 6Kb+  026 r2vu TE3R  027 D/rB POw7  028 af9o e/tL  029 3CoO ZI:X 
+  000 IZdB bqyH  006 rF62 k6zi  012 JCFe 6at3  018 uaYT azuu  024 Nt7n b=fQ
+  001 yCSo /VQs  007 Phvb =6ZW  013 8Pm7 DbYJ  019 OdAk H62c  025 /pOm :ZEA
+  002 mESf +nWK  008 J9fH iXrn  014 MAds 6TTS  020 Aj6W 9O4P  026 DhCc yrPY
+  003 x4vX HXr2  009 DGPC amts  015 B=xZ waPx  021 MzUP Ahsc  027 UWTe G3Fh
+  004 A5z9 japt  010 s6cr xwZ5  016 sCgq Da5Y  022 Q=XK 4I7w  028 xszW Ha9L
+  005 YCcA k29/  011 inn6 Rsa/  017 m8za o/HB  023 umS= gYoU  029 +HmG Rr6P
 
               !!! REMEMBER: Enter the PREFIX PASSWORD first !!!
 </PRE>
@@ -118,7 +118,7 @@ machines on which the user has a common home directory.
 
 <P>By default, <CITE>otpw-gen</CITE> generates 60 lines of output. Use
 the command line options <SAMP>-l</SAMP>&nbsp;<VAR>lines</VAR> or
-<SAMP>-n</SAMP>&nbsp;<VAR>passwords</VAR> to specify the length of the
+<SAMP>-w</SAMP>&nbsp;<VAR>columns</VAR> to specify the length of the
 output. No more than 1000 passwords will be generated at a time.
 
 <P>Where one-time-password authentication is used, the password prompt
@@ -129,7 +129,7 @@ number from the printed password list:
 
 <PRE>
   login: <B>kuhn</B>
-  Password 013: <B>geHeimTtdXhEts</B>
+  Password 019: <B>geHeimOdAkH62c</B>
 </PRE>
 
 <P>In this example, <SAMP>geHeim</SAMP> was the prefix password. The
@@ -149,7 +149,7 @@ three one-time passwords to be entered:
 
 <PRE>
   login: <B>kuhn</B>
-  Password 012/021/010: <B>geHeimGCuqoe8UdkPvftGB7ogQ ZL=/</B>
+  Password 022/000/004: <B>geHeimQ=XK4I7wIZdBbqyHA5z9japt</B>
 </PRE>
 
 <P>This might look inconvenient at first, but remember that three
@@ -171,36 +171,63 @@ removed after 24 hours.
 <P>The <SAMP>.otpw</SAMP> file looks like
 
 <PRE>
-  OTPW 1.0
-  0024
-  7SpKI39RSk9W
-  vjAEo6E72r78
-  qZatquCqmncG
-  :uOAriAChJGj
-  eqoxQ8wdV%hf
-  94fDnDyDwVg9
-  K=Vy8ggkI%Nh
-  X97yiwz6RpTJ
-  :Bi:PaBSRGjG
-  4WZyORbCvkX:
-  ------------
-  xI/bfTfg5GwX
-  ------------
-  ------------
-  za9BOdjv2f+:
-  [...]
+  OTPW1
+  30 3 12 8
+  ---------------
+  ---------------
+  023vf+Uvbg7AqjC
+  025Mm+mJWbStzL5
+  024aPEXvP3pgUYa
+  008r3b5efMVT%IU
+  002AQ63iP8ymMWq
+  005:PcEr:LoieKO
+  ---------------
+  0135:Gw==tjv=rA
+  020rQQ2C2SQP%EU
+  02197Jh5deXd8ga
+  016qN9qPHh4CNz6
+  010BcqejWc+kI6i
+  027hkkmBcMZYxgg
+  029tkB6Wm5yS=F7
+  003BpcMoM=YwTPY
+  018f=4hAXWpwetr
+  014jiOz/aMow83k
+  0099gRB2+8QX8BC
+  012QBhdmm7k=Hqs
+  007g6zMK%Ryp6hZ
+  015XsTSUVUYTJ+8
+  017uxVFK6BikgpV
+  ---------------
+  0067t5Z8SIdz/6h
+  026CN/JqBQJLKZE
+  028V5hj+3wYkFHq
+  011VooKgV4PAJRD
+  0016AtPvgkVe+Rw
 </PRE>
 
-<P>The first line identifies the file format and the second line shows
-the number of originally generated password entries. Every further
-line is the <A HREF=
+<P>The first line identifies the file format. The second line shows the
+
+<UL>
+
+<LI>number of originally generated password entries,
+
+<LI>digits per password number (3),
+
+<LI>characters per base-64 encoded hash value (12),
+
+<LI>characters per one-time password.
+
+</UL>
+
+<P>Every subsequent line is a password number followed by the <A HREF=
 "http://www.esat.kuleuven.ac.be/~bosselae/ripemd160.html">RIPEMD-160</A>
 hash value of the prefix password concatenated with one of the printed
-one-time passwords. Only the first 72 bits of the hash value encoded
-in the same modified base64 encoding that was used to generate the
-passwords is stored there. As soon as a one-time password has been
-entered correctly, the corresponding <SAMP>.otpw</SAMP> line will be
-overwritten with 12 hyphens to prevent any reuse of this password.
+one-time passwords. Only the first 12*6=72 bits of the hash value
+encoded in the same modified base-64 encoding that was used to
+generate the passwords is stored there. As soon as a one-time password
+has been entered correctly, the corresponding <SAMP>.otpw</SAMP> line
+will be overwritten with hyphens to prevent any reuse of this
+password.
 
 <H2>Installation</H2>
 
@@ -218,7 +245,7 @@ produce an output that is extremely difficult to predict for potential
 attackers. If your operating system has a <SAMP>/dev/random</SAMP> or
 <SAMP>/dev/urandom</SAMP> device that gives access to a good true
 random number generator, then make sure that a command reads and
-outputs abount 20 bytes from there. In <SAMP>ENTROPY_ENV</SAMP>, some
+outputs about 20 bytes from there. In <SAMP>ENTROPY_ENV</SAMP>, some
 environment variables (e.g., <SAMP>PATH</SAMP>) can be set for these
 shell commands.
 
@@ -343,15 +370,18 @@ for instance a zero is confused with a capital <SAMP>O</SAMP> by the
 user, the password verification routine will automatically correct for
 this.
 
-<P>While S/KEY uses sequences of short English words as passwords,
-OTPW uses a base64 encoding, because it allows more passwords to be
-printed on a single page. In addition, an average human spy needs over
-30 seconds to write a 12-character random string into short-term
-memory, which provides a good protection against brief looks that an
-attacker might have on a password list. Lists of short words on the
-other hand are much faster to memorize. OTPW can be configured at
-compile time to use either 8 or 12 character passwords with 48 or 72
-bits of entropy, respectively.
+<P>S/KEY uses sequences of short English words as passwords. OTPW uses
+by default a base64 encoding instead, because that allows more
+passwords to be printed on a single page, with the same password
+entropy. In addition, an average human spy needs over 30 seconds to
+write a 12-character random string into short-term memory, which
+provides a good protection against brief looks that an attacker might
+have on a password list. Lists of short words on the other hand are
+much faster to memorize. OTPW can handle arbitrary password generation
+algorithms, as long as the length of the password is fixed. In the
+current version, <SAMP>otpw-gen</SAMP> can generate both base-64
+encoded (option -p0) and 4-letter-word encoded (option -p1) passwords
+with a user-specified entropy (option -e).
 
 <P>The prefix password ensures that neither stealing the password list
 nor eavesdropping the line alone can provide unauthorized access.
@@ -364,8 +394,8 @@ user base, for which an extra battery-powered device is inconvenient
 or not cost effective and who therefore still use normal Unix
 passwords everywhere.
 
-<P>In contrast to the proposal in RFC 1938, OTPW does not lock more
-than one one-time password at a time. If we did this, an attacker
+<P>In contrast to the suggestion made in RFC 1938, OTPW does not lock
+more than one one-time password at a time. If we did this, an attacker
 could easily exhaust our list of unlocked passwords and force us to
 either not login at all or use the normal Unix login password.
 Therefore, OTPW locks only one single password and for all further
@@ -374,10 +404,10 @@ remain available, then there are over a million different challenges
 and an attacker has very little chance to perform a successful race
 attack while the authorized user finishes password entry.
 
-<P>Special thanks to Kan Zhang (Cambridge) for useful suggestions. The
-RIPEMD-160 routine was provided by Antoon Bosselaers (Katholieke
-Universiteit Leuven). Steven Murdoch (Cambridge) wrote significant
-parts of the PAM wrapper and prepared a test setup.
+<P>The RIPEMD-160 routine was provided by Antoon Bosselaers
+(Katholieke Universiteit Leuven). Steven Murdoch wrote significant
+parts of the PAM wrapper and prepared a test setup. Also thanks to Kan
+Zhang, Piete Brooks and David Wheeler for useful suggestions.
 
 <H2>References</H2>
 
@@ -425,7 +455,7 @@ Sign-On Service (XSSO) - Pluggable Authentication</A>. June 1997.
 
 <P><A HREF= "http://www.cl.cam.ac.uk/~mgk25/">Markus Kuhn</A>
 <BR><SMALL>created 1997-11-25 --
-last modified 2003-06-20 --
+last modified 2003-08-31 --
 http://www.cl.cam.ac.uk/~mgk25/otpw.html</SMALL>
 </BODY>
 </HTML>
