@@ -1,4 +1,4 @@
-.TH OTPW-GEN 1 "2003-06-24"
+.TH OTPW-GEN 1 "2003-08-31"
 .SH NAME
 otpw-gen \- one-time password generator
 .SH SYNOPSIS
@@ -17,7 +17,7 @@ untrusted terminals.
 Before you can use
 .I OTPW
 to log into your system, two preparation steps are necessary. Firstly,
-a system administrator has to enable it. This is usually done by
+your system administrator has to enable it. This is usually done by
 configuring your login software (e.g., sshd) to use
 .I OTPW
 via the Pluggable Authentication Module (PAM) configuration files
@@ -31,8 +31,9 @@ it out. This can be done by calling
 You will be asked for a
 .IR "prefix password" ,
 which you need to memorize. It has to be entered immediately before
-the one-time password and prevents anyone who finds your password
-printout can use it to impersonate you.
+the one-time password. The prefix password reduces the risk that
+anyone who finds or steals your password printout can use that alone
+to impersonate you.
 
 Each one-time password will be printed behind a three digit password
 number. Such a number will appear in the password prompt when
@@ -60,9 +61,9 @@ for three random passwords simultaneously.
 .IP
 .B Password 047/192/210:
 .PP
-You then have to enter the prefix password immediately followed by the
-three given one-time passwords. This fall-back mode is activated by
-the existence of the lock file
+You then have to enter the prefix password, followed immediately by
+the three requested one-time passwords. This fall-back mode is
+activated by the existence of the lock file
 .BR ~/.otpw.lock .
 If it was left over by some malfunction, it can safely be deleted
 manually.
@@ -79,17 +80,34 @@ all remaining passwords on the previous sheet.
 Specify the total number of lines to be sent to standard output.
 This number minus four header lines determines the number of rows in the
 printed password matrix. It is reduced automatically to never print more
-than 1000 passwords. (Default: 60)
+than 1000 passwords. (Minimum: 5, default: 60)
 .TP
 .BI \-w " number"
-Specify the maximum width of lines to be sent to standard output.
-This parameter determines together with the password length the number
-of columns in the printed password matrix. (Default: 79)
+Specify the maximum width of lines to be sent to standard output. This
+parameter determines together with the password length the number of
+columns in the printed password matrix. (Minimum: 64, default: 79)
 .TP
-.BI \-s " number"
-Specify the length of each one-time password in characters. Each
-character carries 6 bits of information. Supported values are in the
-range from 4 to 13. (Default: 8, i.e. 48 bits entropy)
+.BI \-e " number"
+Specify the minimum entropy of each one-time password in bits. The
+length of each password will be chosen automatically, such that there
+are at least two to the power of the specified number possible
+passwords. A value below 30 might make the passwords vulnerable to
+a brute-force guessing attack. If the attacke might have read access to
+the
+.B ~/.otpw
+file, the value should be at least 48. Paranoid users might prefer
+long high-security passwords with at least 60 bits of entropy.
+(Default: 48)
+.TP
+.BI \-p0
+Generate passwords by transforming a random bit string into a sequence
+of letters and digits, using a form of base-64 encoding (6 bits per
+character). (Default)
+.TP
+.BI \-p1
+Generate passwords by transforming a random bit string into a sequence
+of English four-letter words, each chosen from a fixed list of 2048
+words (2.75 bits per character).
 .TP
 .BI \-f " filename"
 Specify a file to be used instead of
