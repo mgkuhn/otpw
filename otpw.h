@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw.h,v 1.3 2003-06-19 19:44:33 mgk25 Exp $
+ * $Id: otpw.h,v 1.4 2003-06-20 13:58:58 mgk25 Exp $
  */
 
 #ifndef OTPW_H
@@ -33,6 +33,7 @@ struct challenge {
   int entries;               /* number of entries in OTPW_FILE */
   int remaining;             /* number of remaining unused OTPW_FILE entries */
   uid_t uid;                 /* effective uid for OTPW_FILE/OTPW_LOCK access */
+  gid_t gid;                 /* effective gid for OTPW_FILE/OTPW_LOCK access */
   int selection[OTPW_MULTI]; /* positions of the requested passwords */
   char hash[OTPW_MULTI][13]; /* base64 hash value of the requested passwords */
 };

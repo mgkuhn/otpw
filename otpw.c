@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw.c,v 1.4 2003-06-19 17:40:16 mgk25 Exp $
+ * $Id: otpw.c,v 1.5 2003-06-20 13:58:58 mgk25 Exp $
  */
 
 #include <stdlib.h>
@@ -107,6 +107,7 @@ void otpw_prepare(struct challenge *ch, struct passwd *user)
   int i, j;
   int locked, count, repeat;
   int olduid = -1;
+  int oldgid = -1;
   char line[81];
   unsigned char r[MD_LEN];
   struct stat lbuf;
@@ -126,10 +127,15 @@ void otpw_prepare(struct challenge *ch, struct passwd *user)
     return;
   }
   ch->uid = user->pw_uid;
+  ch->gid = user->pw_gid;
   
-  /* set effective uid temporarily */
+  /* set effective uid/gui temporarily */
   olduid = geteuid();
-  seteuid(ch->uid);
+  oldgid = getegid();
+  if (setegid(ch->gid))
+    DEBUG_LOG("Failed to change egid %d -> %d", oldgid, ch->gid);
+  if (seteuid(ch->uid))
+    DEBUG_LOG("Failed to change euid %d -> %d", olduid, ch->uid);
 
   /* open password file */
   if (chdir(user->pw_dir)) {
@@ -288,8 +294,13 @@ void otpw_prepare(struct challenge *ch, struct passwd *user)
 cleanup:
   if (f)
     fclose(f);
+  /* restore uid/gid */
   if (olduid != -1)
-    seteuid(olduid);
+    if (seteuid(olduid))
+      DEBUG_LOG("Failed when trying to change euid back to %d", olduid);
+  if (oldgid != -1)
+    if (setegid(oldgid))
+      DEBUG_LOG("Failed when trying to change egid back to %d", oldgid);
   if (hash)
     free(hash);
 
@@ -305,6 +316,7 @@ int otpw_verify(struct challenge *ch, char *password)
   int entries;
   int deleted, clear;
   int olduid = -1;
+  int oldgid = -1;
   char otpw[OTPW_MULTI][OTPW_GROUPS * 4];
   char line[81];
   unsigned char h[MD_LEN];
@@ -360,7 +372,7 @@ int otpw_verify(struct challenge *ch, char *password)
 	l--;
       }
     }
-    DEBUG_LOG("Password %d = '%.12s'", i, otpw[i]);
+    DEBUG_LOG("Password %d = '%.*s'", i, OTPW_GROUPS * 4, otpw[i]);
   }
   if (i >= 0 || j >= 0) {
     DEBUG_LOG("Entered password was too short.");
@@ -394,12 +406,18 @@ int otpw_verify(struct challenge *ch, char *password)
   result = OTPW_OK;
   DEBUG_LOG("Entered password(s) are ok.");
 
-  /* set effective uid temporarily */
+  /* set effective uid/gid temporarily */
   olduid = geteuid();
-  seteuid(ch->uid);
+  oldgid = getegid();
+  if (setegid(ch->gid))
+    DEBUG_LOG("Failed when trying to change egid %d -> %d", oldgid, ch->gid);
+  if (seteuid(ch->uid))
+    DEBUG_LOG("Failed when trying to change euid %d -> %d", olduid, ch->uid);
 
   /* Now overwrite the used passwords in OTPW_FILE */
   if (!(f = fopen(OTPW_FILE, "r+"))) {
+    DEBUG_LOG("Failed getting write access to '" OTPW_FILE "': %s",
+	      strerror(errno));
     goto writefail;
   }
   /* check header */
@@ -436,6 +454,7 @@ int otpw_verify(struct challenge *ch, char *password)
   /* entered one-time passwords were correct, but overwriting them failed */
   if (ch->passwords == 1) {
     /* for a single password, permit login, but keep lock in place */
+    DEBUG_LOG("Keeping lock on password.");
     ch->locked = 0; /* supress removal of lock */
   }
 
@@ -445,9 +464,13 @@ int otpw_verify(struct challenge *ch, char *password)
   /* remove lock */ 
   if (ch->locked)
     unlink(OTPW_LOCK);
-  /* restore euid */
+  /* restore uid/gid */
   if (olduid != -1)
-    seteuid(olduid);
+    if (seteuid(olduid))
+      DEBUG_LOG("Failed when trying to change euid back to %d", olduid);
+  if (oldgid != -1)
+    if (setegid(oldgid))
+      DEBUG_LOG("Failed when trying to change egid back to %d", oldgid);
   /* make sure, we are not called a second time */
   ch->passwords = 0;
 
