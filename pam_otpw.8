@@ -1,0 +1,52 @@
+.TH PAMOTPW 1 "2003-06-24"
+.SH NAME
+pam_otpw \- verify one-time passwords
+.SH SYNOPSIS
+.B pam_otpw
+[
+.I arguments
+]
+.SH DESCRIPTION
+.I OTPW
+is a one-time password authentication system. It compares entered
+passwords with hash values stored in the user's home directory in the
+file
+.BR ~/.otpw .
+Once a password was entered correctly, its hash value in
+.B ~/.otpw
+will be overwritten with hyphens, which disables its use in future
+authentication. A lock file
+.B ~/.otpw.lock
+prevents that the same password challenge is issued on several
+concurrent authentication sessions. This helps to prevent an
+eavesdropper from copying a one-time password as it is entered
+instantly into a second session, in the hope to get access by sending
+the final newline character faster than the user could.
+
+Both an authentication management and a session management function
+are offered by this module. The authentication function asks for and
+verifies one-time passwords. The session function prints a message
+after login that reminds the user of the remaining number of one-time
+passwords.
+
+.SH ARGUMENTS
+.IP debug
+Turn on debugging via \fBsyslog(3)\fR.
+.IP nolock
+Disable locking. This option tells the authentication function of
+.I pam_otpw.so
+to ignore any existing
+.B ~/.otpw.lock
+lock file and not to generate any. With this option,
+.I pam_otpw.so
+will never ask for several passwords simultaneously.
+
+.SH AUTHOR
+The
+.I OTPW
+package, which includes the
+.I otpw-gen
+progam, has been developed by Markus Kuhn. The most recent version is
+available from <http://www.cl.cam.ac.uk/~mgk25/otpw.html>.
+.SH SEE ALSO
+otpw-gen(1), pam(8)

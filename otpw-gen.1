@@ -1,0 +1,106 @@
+.TH OTPW-GEN 1 "2003-06-24"
+.SH NAME
+otpw-gen \- one-time password generator
+.SH SYNOPSIS
+.B otpw-gen
+[
+.I options
+]
+.SH DESCRIPTION
+.I OTPW
+is a one-time password authentication system. It can be plugged into
+any application that needs to authenticate users interactively.
+One-time password authentication is a valuable protection against
+keyboard and network sniffing attacks, especially for logins from
+untrusted terminals.
+
+Before you can use
+.I OTPW
+to log into your system, two preparation steps are necessary. Firstly,
+a system administrator has to enable it. This is usually done by
+configuring your login software (e.g., sshd) to use
+.I OTPW
+via the Pluggable Authentication Module (PAM) configuration files
+in /etc/pam.d/.
+
+Secondly, you need to generate a list of one-time passwords and print
+it out. This can be done by calling
+.IP
+.B otpw-gen | lpr
+.PP
+You will be asked for a
+.IR "prefix password" ,
+which you need to memorize. It has to be entered immediately before
+the one-time password and prevents anyone who finds your password
+printout can use it to impersonate you.
+
+Each one-time password will be printed behind a three digit password
+number. Such a number will appear in the password prompt when
+.I OTPW
+has been activated:
+.IP
+.B Password 026:
+.PP
+When you see this prompt, enter the memorized prefix password,
+followed immediately by the one-time password identified by the
+number. Any spaces within a password have only been inserted to
+improve legibility and do not have to be copied.
+.I OTPW
+will ignore the difference between the easily confused characters
+.B 0O
+and
+.B Il1
+in passwords.
+
+In some situations, for example if multiple logins occur
+simultaneously for the same user,
+.I OTPW
+defends itself against the possibility of various attacks by asking
+for three random passwords simultaneously.
+.IP
+.B Password 047/192/210:
+.PP
+You then have to enter the prefix password immediately followed by the
+three given one-time passwords. This fall-back mode is activated by
+the existence of the lock file
+.BR ~/.otpw.lock .
+If it was left over by some malfunction, it can safely be deleted
+manually.
+
+Call
+.B otpw-gen
+again when you have used up about half of the printed one-time
+passwords or when you have lost your password sheet. This will disable
+all remaining passwords on the previous sheet.
+
+.SH OPTIONS
+.TP 14
+.BI \-h " number"
+Specify the total number of lines to be sent to standard output.
+This number minus four header lines determines the number of rows in the
+printed password matrix. It is reduced automatically to never print more
+than 1000 passwords. (Default: 60)
+.TP
+.BI \-w " number"
+Specify the maximum width of lines to be sent to standard output.
+This parameter determines together with the password length the number
+of columns in the printed password matrix. (Default: 79)
+.TP
+.BI \-s " number"
+Specify the length of each one-time password in characters. Each
+character carries 6 bits of information. Supported values are in the
+range from 4 to 13. (Default: 8, i.e. 48 bits entropy)
+.TP
+.BI \-f " filename"
+Specify a file to be used instead of
+.I ~/.otpw
+for storing the hash values of the generated one-time passwords.
+.SH AUTHOR
+The
+.I OTPW
+package, which includes the
+.I otpw-gen
+progam, has been developed by Markus Kuhn. The most recent version is
+available from <http://www.cl.cam.ac.uk/~mgk25/otpw.html>.
+.SH SEE ALSO
+pam(8), pam_otpw(8)
