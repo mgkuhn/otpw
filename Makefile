@@ -3,7 +3,7 @@
 #
 # Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
 #
-# $Id: Makefile,v 1.4 2003-06-19 20:09:34 mgk25 Exp $
+# $Id: Makefile,v 1.5 2003-06-20 08:36:48 mgk25 Exp $
 #
 
 VERSION=1.1
@@ -27,7 +27,7 @@ md.o: md.c md.h rmd160.h
 rmd160.o: rmd160.c rmd160.h
 otpw-l.o: otpw-l.c otpw.c otpw.h md.h conf.h
 pam_otpw.o: pam_otpw.c otpw.h md.h conf.h
-pam_otpw.so: pam_otpw.o otpw.o rmd160.o md.o
+pam_otpw.so: pam_otpw.o otpw-l.o rmd160.o md.o
 	ld --shared -o $@ $+ -lcrypt -lpam -lpam_misc
 
 ship: all clean
