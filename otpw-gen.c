@@ -3,7 +3,7 @@
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  *
- * $Id: otpw-gen.c,v 1.3 2003-06-19 17:45:49 mgk25 Exp $
+ * $Id: otpw-gen.c,v 1.4 2003-06-19 19:49:01 mgk25 Exp $
  */
 
 #include <stdio.h>
@@ -321,7 +321,7 @@ int main(int argc, char **argv)
 
   if (newotpws % pw_per_line != 0)
     printf(NL);
-  printf(NL "!!! DO NOT FORGET TO ENTER PREFIX PASSWORD FIRST !!!" NL);
+  printf(NL "            !!! REMEMBER: Enter the PREFIX PASSWORD first !!!" NL);
 
   fclose(f);
   if (rename(OTPW_TMP, fnout)) {

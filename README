@@ -1,1 +1,12 @@
-The documentation can be found in the file otpw.html
+
+OTPW - A one-time password login package
+----------------------------------------
+
+OTPW is a one-time password authentication library and PAM module that
+provides a number of advantages over other systems.
+
+Please read the documentation in the file otpw.html for details.
+
+-- 
+Markus Kuhn, Computer Laboratory, University of Cambridge
+http://www.cl.cam.ac.uk/~mgk25/ || CB3 0FD, Great Britain

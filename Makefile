@@ -3,28 +3,32 @@
 #
 # Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
 #
-# $Id: Makefile,v 1.2 2003-06-16 16:25:06 mgk25 Exp $
+# $Id: Makefile,v 1.3 2003-06-19 19:49:19 mgk25 Exp $
 #
 
-VERSION=1.0
+VERSION=1.1
 
 CC=gcc
-#CFLAGS=-O
-CFLAGS=-ggdb -DDEBUG -O -W -Wall
+CFLAGS=-O -W
+#CFLAGS=-ggdb -DDEBUG -O -W -Wall
 
-TARGETS=newpass demologin
+TARGETS=otpw-gen demologin pam_otpw.so
 
 all: $(TARGETS)
 
-newpass: newpass.o rmd160.o md.o
-	$(CC) -o newpass newpass.o rmd160.o md.o
+otpw-gen: otpw-gen.o rmd160.o md.o
+	$(CC) -o $@ $+
 demologin: demologin.o otpw.o rmd160.o md.o
-	$(CC) -o demologin demologin.o otpw.o rmd160.o md.o -lcrypt
+	$(CC) -o $@ $+ -lcrypt
 
-newpass.o: newpass.c md.h conf.h
+otpw-gen.o: otpw-gen.c md.h conf.h
 otpw.o: otpw.c otpw.h md.h conf.h
 md.o: md.c md.h rmd160.h
 rmd160.o: rmd160.c rmd160.h
+otpw-l.o: otpw-l.c otpw.c otpw.h md.h conf.h
+pam_otpw.o: pam_otpw.c otpw.h md.h conf.h
+pam_otpw.so: pam_otpw.o otpw-l.o rmd160.o md.o
+	ld --shared -o $@ $+ -lcrypt -lpam -lpam_misc
 
 ship: all clean
 	ci -l RCS/*
