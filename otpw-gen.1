@@ -1,4 +1,4 @@
-.TH OTPW-GEN 1 "2003-08-31"
+.TH OTPW-GEN 1 "2003-09-30"
 .SH NAME
 otpw-gen \- one-time password generator
 .SH SYNOPSIS
@@ -11,17 +11,17 @@ otpw-gen \- one-time password generator
 is a one-time password authentication system. It can be plugged into
 any application that needs to authenticate users interactively.
 One-time password authentication is a valuable protection against
-keyboard and network sniffing attacks, especially for logins from
-untrusted terminals.
+password eavesdropping, especially for logins from untrusted
+terminals.
 
 Before you can use
 .I OTPW
 to log into your system, two preparation steps are necessary. Firstly,
-your system administrator has to enable it. This is usually done by
+your system administrator has to enable it. (This is usually done by
 configuring your login software (e.g., sshd) to use
 .I OTPW
-via the Pluggable Authentication Module (PAM) configuration files
-in /etc/pam.d/.
+via the Pluggable Authentication Module (PAM) configuration files in
+/etc/pam.d/.)
 
 Secondly, you need to generate a list of one-time passwords and print
 it out. This can be done by calling
@@ -30,7 +30,7 @@ it out. This can be done by calling
 .PP
 or something like
 .IP
-.B otpw-gen -h 140 | a2ps -1B -L 70 --borders no
+.B otpw-gen -h 70 -s 2 | a2ps -1B -L 70 --borders no
 .PP
 if more control over the layout is desired.
 
@@ -83,15 +83,19 @@ all remaining passwords on the previous sheet.
 .SH OPTIONS
 .TP 14
 .BI \-h " number"
-Specify the total number of lines to be sent to standard output.
-This number minus four header lines determines the number of rows in the
-printed password matrix. It is reduced automatically to never print more
-than 1000 passwords. (Minimum: 5, default: 60)
+Specify the total number of lines per page to be sent to standard
+output. This number minus four header lines determines the number of
+rows of passwords on each page. The maximum number of passwords that
+can be printed is 1000. (Minimum: 5, default: 60)
 .TP
 .BI \-w " number"
 Specify the maximum width of lines to be sent to standard output. This
 parameter determines together with the password length the number of
 columns in the printed password matrix. (Minimum: 64, default: 79)
+.TP
+.BI \-s " number"
+Specify the number of form-feed separated pages to be sent to standard
+output. (Default: 1)
 .TP
 .BI \-e " number"
 Specify the minimum entropy of each one-time password in bits. The

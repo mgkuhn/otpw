@@ -6,7 +6,7 @@
  */
 
 static char const rcsid[] =
-  "$Id: otpw-gen.c,v 1.10 2003-09-01 15:53:55 mgk25 Exp $";
+  "$Id: otpw-gen.c,v 1.11 2003-09-30 20:11:32 mgk25 Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,11 +20,13 @@ static char const rcsid[] =
 #include <termios.h>
 #include <assert.h>
 #include <termios.h>
+#include <limits.h>
 #include "conf.h"
 #include "md.h"
 
 
 #define NL "\r\n"               /* new line sequence in password list output */
+#define FF "\f\n"              /* form feed sequence in password list output */
 #define HEADER_LINES  4       /* lines printed in addition to password lines */
 #define MAX_PASSWORDS 1000                /* maximum length of password list */
 #define CHALLEN 3                       /* number of characters in challenge */
@@ -475,6 +477,7 @@ int make_passwd(const unsigned char *v, int vlen, int type, int entropy,
 	k -= pwchars;
       }
     }
+    buf[pwlen] = '\0';
     break;
   case PW_WORD4:
     for (i = 0; i < pwchars/4; i++) {
@@ -503,6 +506,7 @@ int main(int argc, char **argv)
     "\nOptions:\n\n"
     "\t-h <int>\tnumber of output lines (default 60)\n"
     "\t-w <int>\tmax width of output lines (default 79)\n"
+    "\t-s <int>\tnumber of output pages (default 1)\n"
     "\t-e <int>\tminimum entropy of each one-time password [bits]\n"
     "\t\t\t(low security: <30, default: 48, high security: >60)\n"
     "\t-p0\t\tpasswords from modified base64 encoding (default)\n"
@@ -512,14 +516,15 @@ int main(int argc, char **argv)
 
   unsigned char r[MD_LEN], h[MD_LEN];
   md_state md;
-  int i, j, k;
+  int i, j, k, l;
   struct passwd *pwd = NULL;
   FILE *f;
   char timestr[81], hostname[81], password1[81], password2[81];
+  char header[LINE_MAX];
   char *fnout = NULL, *fnoutp = "";
   struct termios term, term_old;
   int stdin_is_tty = 0;
-  int width = 79, rows = 60 - HEADER_LINES, pwlen, pwchars;
+  int width = 79, rows = 60 - HEADER_LINES, pages = 1, pwlen, pwchars;
   int entropy = 48, emax, type = PW_BASE64;
   int cols;
   time_t t;
@@ -558,6 +563,19 @@ int main(int argc, char **argv)
 	  if (width < 64) {
 	    fprintf(stderr, "Specify not less than 64 character "
 		    "wide lines!\n");
+	    exit(1);
+	  }
+          j = -1;
+          break;
+        case 's':
+	  if (++i >= argc) {
+	    fprintf(stderr, "Specify number of pages after option -s "
+		    "(e.g., \"-s 2\")!\n");
+	    exit(1);
+	  }
+	  pages = atoi(argv[i]);
+	  if (pages < 1) {
+	    fprintf(stderr, "Specify at least 1 page!\n");
 	    exit(1);
 	  }
           j = -1;
@@ -616,8 +634,10 @@ int main(int argc, char **argv)
   }
 
   cols = (width + 2) / (CHALLEN + 1 + pwlen + 2);
-  if (rows * cols > 1000)
-    rows = 1000 / cols;
+  if (pages * rows * cols > 1000) {
+    if (pages == 1)
+      rows = 1000 / cols;
+  }
 
   if (debug)
     fprintf(stderr, "pwlen=%d, pwchars=%d, emax=%d, cols=%d, rows=%d\n",
@@ -704,43 +724,50 @@ int main(int argc, char **argv)
 
   /* write magic code for format identification */
   fprintf(f, OTPW_MAGIC);
-  fprintf(f, "%d %d %d %d\n", rows * cols, CHALLEN, OTPW_HLEN,
+  fprintf(f, "%d %d %d %d\n", pages * rows * cols, CHALLEN, OTPW_HLEN,
 	  pwchars);
   
   fprintf(stderr, "Generating new one-time passwords ...\n\n");
 
-  /* print header that uniquely identifies this password list */
+  /* prepare header line that uniquely identifies this password list */
   time(&t);
   strftime(timestr, 80, "%Y-%m-%d %H:%M", localtime(&t));
-  printf("OTPW list generated %s", timestr);
-  if (!gethostname(hostname, sizeof(hostname)))
-    printf(" on %.*s", (int) sizeof(hostname), hostname);
-  printf(NL NL);
+  strcpy(hostname, "???");
+  gethostname(hostname, sizeof(hostname));
+  hostname[sizeof(hostname)-1] = 0;
+  snprintf(header, sizeof(header),
+	   "OTPW list generated %s on %s" NL NL, timestr, hostname);
   
-  hbuf = malloc(rows * cols * HBUFLEN);
+  hbuf = malloc(pages * rows * cols * HBUFLEN);
   if (!hbuf) {
     fprintf(stderr, "Memory allocation error!\n");
     exit(1);
   }
 
-  for (i = 0; i < rows; i++) {
-    for (j = 0; j < cols; j++) {
-      k = j * rows + i;
-      /* generate new password */
-      rbg_iter(r);
-      make_passwd(r, MD_LEN, type, entropy, password2, sizeof(password2));
-      /* output challenge */
-      printf("%03d %s", k, password2);
-      printf(j == cols - 1 ? NL : "  ");
-      /* hash password1 + pwnorm(password2) and save result */
-      md_init(&md);
-      md_add(&md, password1, strlen(password1));
-      pwnorm(password2);
-      md_add(&md, password2, pwchars);
-      md_close(&md, h);
-      sprintf(hbuf + k * HBUFLEN, "%0*d", CHALLEN, k);
-      conv_base64(hbuf + k*HBUFLEN + CHALLEN, h, OTPW_HLEN);
+  for (l = 0; l < pages; l++) {
+    fputs(header, stdout);
+    for (i = 0; i < rows; i++) {
+      for (j = 0; j < cols; j++) {
+	k = j * rows + i + l * rows * cols;
+	/* generate new password */
+	rbg_iter(r);
+	make_passwd(r, MD_LEN, type, entropy, password2, sizeof(password2));
+	/* output challenge */
+	printf("%03d %s", k, password2);
+	printf(j == cols - 1 ? NL : "  ");
+	/* hash password1 + pwnorm(password2) and save result */
+	md_init(&md);
+	md_add(&md, password1, strlen(password1));
+	pwnorm(password2);
+	md_add(&md, password2, pwchars);
+	md_close(&md, h);
+	sprintf(hbuf + k * HBUFLEN, "%0*d", CHALLEN, k);
+	conv_base64(hbuf + k*HBUFLEN + CHALLEN, h, OTPW_HLEN);
+      }
     }
+    printf(NL "%*s%s", (cols*(CHALLEN + 1 + pwlen + 2) - 2)/2 + 50/2,
+	   "!!! REMEMBER: Enter the PREFIX PASSWORD first !!!",
+	   l == pages - 1 ? NL : FF);
   }
 
   /* paranoia RAM scrubbing (note that we can't scrub stdout/stdin portably) */
@@ -753,15 +780,12 @@ int main(int argc, char **argv)
   memset(password2, 0xaa, sizeof(password2));
 
   /* output all hash values in random permutation order */
-  for (k = rows * cols - 1; k >= 0; k--) {
+  for (k = pages * rows * cols - 1; k >= 0; k--) {
     rbg_iter(r);
     i = k > 0 ? (*(unsigned *) r) % k : 0;
     fprintf(f, "%s\n", hbuf + i*HBUFLEN);
     memcpy(hbuf + i*HBUFLEN, hbuf + k*HBUFLEN, HBUFLEN);
   }
-
-  printf(NL "%*s" NL, (cols*(CHALLEN + 1 + pwlen + 2) - 2)/2 + 50/2,
-	 "!!! REMEMBER: Enter the PREFIX PASSWORD first !!!");
 
   fclose(f);
   if (rename(OTPW_TMP, fnout)) {
