@@ -1,2 +1,14 @@
-All requested features for OTPW have now been implemented; the
-wishlist is currently empty.
+ - implement options use_first_pass and try_first_pass, like
+   the kerb5 module does (pb)
+
+ - check what other "standard" options every pam module should
+   offer (pb)
+
+ - option for otpw-gen to generate only one single password (pb)
+
+ - global config file; reduce the number of compile-time options (pb)
+
+ - move .otpw out of home directory, such that user cannot
+   recycle passwords (this requires otpw-gen to become setuid)
+
+ - add generation time and (optional) expiry time to .otpw file (pb)
