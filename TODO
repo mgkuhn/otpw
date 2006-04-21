@@ -12,3 +12,8 @@
    recycle passwords (this requires otpw-gen to become setuid)
 
  - add generation time and (optional) expiry time to .otpw file (pb)
+
+ - what happens with the 3-password challenge if there is only
+   a single password left? (pb)
+
+ - make lock timeout (default 24 h) configurable (pb)
