@@ -17,3 +17,5 @@
    a single password left? (pb)
 
  - make lock timeout (default 24 h) configurable (pb)
+
+ - "buddy file" with list of other users who can add a one-time password
