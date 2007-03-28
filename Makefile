@@ -10,6 +10,8 @@ VERSION=1.4
 
 CC=gcc
 CFLAGS=-O -ggdb -W -Wall
+# Note: on Linux x86_64  architectures, it seems that -fPIC is also
+# required in CFLAGS for anything that will be linked with --shared
 
 TARGETS=otpw-gen demologin pam_otpw.so
 
