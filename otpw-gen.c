@@ -2,11 +2,7 @@
  * One-time password generator
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
- *
  */
-
-static char const rcsid[] =
-  "$Id: otpw-gen.c,v 1.3 2004-03-28 21:57:41+01 mgk25 Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>

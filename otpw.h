@@ -2,8 +2,6 @@
  * One-time password login capability
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
- *
- * $Id: otpw.h,v 1.6 2004-03-21 11:31:34 mgk25 Exp $
  */
 
 #ifndef OTPW_H

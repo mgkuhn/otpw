@@ -3,8 +3,6 @@
 #
 # Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
 #
-# $Id: Makefile,v 1.2 2004-03-21 22:53:52+00 mgk25 Exp $
-#
 
 VERSION=1.4
 
