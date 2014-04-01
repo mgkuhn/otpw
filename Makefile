@@ -7,9 +7,7 @@
 VERSION=1.4
 
 CC=gcc
-CFLAGS=-O -ggdb -W -Wall
-# Note: on Linux x86_64  architectures, it seems that -fPIC is also
-# required in CFLAGS for anything that will be linked with --shared
+CFLAGS=-O -ggdb -W -Wall -Wno-unused-result -fPIC
 
 TARGETS=otpw-gen demologin pam_otpw.so
 
@@ -29,19 +27,13 @@ pam_otpw.o: pam_otpw.c otpw.h md.h conf.h
 pam_otpw.so: pam_otpw.o otpw-l.o rmd160.o md.o
 	ld --shared -o $@ $+ -lcrypt -lpam -lpam_misc
 
-snapshot: all clean
-	cvs diff
-	cd .. ; tar cvzf - --exclude otpw/CVS otpw | \
-	ssh trillium "cat >public_html/download/otpw-snapshot.tar.gz"
-	scp otpw.html trillium:public_html/otpw-snapshot.html
+distribution:
+	git archive --prefix otpw-$(VERSION)/ -o otpw-$(VERSION).tar.gz v$(VERSION)
 
-ship: snapshot
-	cvs tag -c rel-`echo $(VERSION) | tr . -`
-	cd .. ; tar cvzf - --exclude otpw/CVS otpw | \
-	ssh trillium "cat >public_html/download/otpw-$(VERSION).tar.gz"
-	scp otpw.html trillium:public_html/
-	ssh trillium rm -f public_html/download/otpw-snapshot.tar.gz \
-	  public_html/otpw-snapshot.html
+release:
+	git diff --exit-code v$(VERSION) -- otpw.html
+	rsync -t otpw-$(VERSION).tar.gz $(HOME)/public_html/download/
+	rsync -t otpw.html $(HOME)/public_html/
 
 install-pam: pam_otpw.so
 	cp $+ /lib/security/
