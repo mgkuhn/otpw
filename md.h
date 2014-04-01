@@ -7,6 +7,8 @@
 #ifndef MD_H
 #define MD_H
 
+#include <string.h>
+
 #define MD_RIPEMD160
 
 #ifdef MD_RIPEMD160
@@ -22,9 +24,9 @@ typedef struct {
 
 /* prototypes */
 
-void md_init(md_state * md);
-void md_add(md_state * md, unsigned char *src, unsigned long len);
-void md_close(md_state * md, unsigned char *result);
+void md_init(md_state *md);
+void md_add(md_state *md, const void *src, size_t len);
+void md_close(md_state *md, unsigned char *result);
 int md_selftest(void);
 
 #endif

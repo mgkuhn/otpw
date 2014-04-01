@@ -23,7 +23,7 @@ void md_init(md_state * md)
 }
 
 
-void md_add(md_state *md, unsigned char *src, unsigned long len)
+void md_add(md_state *md, const void *src, size_t len)
 {
   int i;
   int remaining = md->length_lo & (MD_BUFLEN-1);
@@ -31,16 +31,18 @@ void md_add(md_state *md, unsigned char *src, unsigned long len)
   unsigned long old_lo = md->length_lo;
   dword X[16];
 
+  /* update 64-bit counter of bytes added so far */
   md->length_lo += len & 0xffffffff;
   if (md->length_lo < old_lo)
     md->length_hi++;
-#if ULONG_MAX > 4294967295U
+#if SIZE_MAX > 4294967295U
   md->length_hi += len >> 32;
   if (md->length_lo > 4294967295U) {
     md->length_hi += md->length_lo >> 32;
     md->length_lo &= 0xffffffff;
   }
 #endif
+  /* complete remaining input block of compression function */
   if (remaining > 0) {
     chunk = MD_BUFLEN - remaining;
     if (chunk > len)
@@ -50,25 +52,25 @@ void md_add(md_state *md, unsigned char *src, unsigned long len)
     src += chunk;
     if (remaining + chunk == MD_BUFLEN) {
       for (i = 0; i < 64; i += 4)
-	X[i>>2] = (dword) md->buf[i] | ((dword) md->buf[i+1] << 8) |
-	  ((dword) md->buf[i+2] << 16) | ((dword) md->buf[i+3] << 24);
+	X[i>>2] = BYTES_TO_DWORD(md->buf + i);
       rmd160_compress((dword *) md->md, X);
     }
   }
+  /* feed whole input blocks to compression function */
   while (len >= MD_BUFLEN) {
     for (i = 0; i < 64; i += 4)
-      X[i>>2] = (dword) src[i] | ((dword) src[i+1] << 8) |
-	((dword) src[i+2] << 16) | ((dword) src[i+3] << 24);
+      X[i>>2] = BYTES_TO_DWORD((unsigned char *)src + i);
     rmd160_compress((dword *) md->md, X);
     src += MD_BUFLEN;
     len -= MD_BUFLEN;
   }
+  /* partially fill buffer with remaining bytes */
   if (len > 0)
     memcpy(md->buf, src, len);
 }
 
 
-void md_close(md_state * md, unsigned char *result)
+void md_close(md_state *md, unsigned char *result)
 {
   int i;
 

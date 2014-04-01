@@ -342,18 +342,18 @@ void rbg_iter(unsigned char *r)
 /* Generate a random byte string s with len bytes from a
  * seed string seed with length slen */
 
-void random_string(char *seed, int slen, char *s, int len)
+void random_string(const void *seed, size_t slen, void *s, size_t len)
 {
   md_state md;
   unsigned char r[MD_LEN];
-  long i;
+  size_t i;
   char j;
 
   md_init(&md);
   md_add(&md, seed, slen);
   md_close(&md, r);
   for (i = 0; i < len; i++) {
-    *(s++) = r[0];
+    *((unsigned char *)s++) = r[0];
     md_init(&md);
     j = i >> 24;  md_add(&md, &j, 1);
     j = i >> 16;  md_add(&md, &j, 1);
@@ -458,8 +458,8 @@ void pwnorm(char *password) {
 /*
  * Convert a random bit sequence into a printable password
  *
- * Input:      v         random bit string
- *             vlen      length of v in bytes
+ * Input:      vr        random bit string
+ *             vlen      length of vr in bytes
  *             type      0: modified base-64 encoding
  *             entropy   requested minimum entropy of password
  *             buf       buffer for returning zero-terminated output password
@@ -476,13 +476,14 @@ void pwnorm(char *password) {
  *  2:  actually used entropy if buflen == 2
  *  3:  maximum entropy that can be specified for given vlen
  */
-int make_passwd(const unsigned char *v, int vlen, int type, int entropy,
+int make_passwd(const void *vr, int vlen, int type, int entropy,
 		char *buf, int buflen)
 {
   int pwchars;   /* number of characters in password */
   int pwlen;     /* length of password, including whitespace */
   int emax;
   int i, j, k;
+  const unsigned char *v = vr;
 
   /* calculate length of output and actually used entropy */
   switch (type) {
