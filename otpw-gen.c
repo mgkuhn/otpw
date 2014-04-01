@@ -839,8 +839,8 @@ int main(int argc, char **argv)
       fclose(f);
       fprintf(stderr, "Overwrite existing password list '%s%s' (Y/n)? ",
 	      fnoutp, fnout);
-      fgets(password1, sizeof(password1), stdin);
-      if (password1[0] != '\n' && password1[0] != 'y' && password1[0] != 'Y') {
+      if (!fgets(password1, sizeof(password1), stdin) ||
+	  (password1[0] != '\n' && password1[0] != 'y' && password1[0] != 'Y')) {
 	if (stdin_is_tty)
 	  tcsetattr(fileno(stdin), TCSANOW, &term_old);
 	fprintf(stderr, "\nAborted.\n");
