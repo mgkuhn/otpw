@@ -1,5 +1,5 @@
 /*
- * One-time password login capability
+ * One-time password login library
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  */
@@ -45,33 +45,37 @@ struct challenge {
 };
 
 /*
- * After the user has entered a login name and has requested OTPW
- * authentication and after and you have retrieved the password
- * database entry *user for this name, call otpw_prepare().
- * A string with the challenge text that has to be presented to the
- * user before the password can be entered will be found in
- * ch->challenge afterwards, but ch->challenge[0] == 0 if one-time
- * password authentication is not possible at this time. The struct *ch
- * has to be given later to otpw_verify(). We do a chdir() to the user's
- * home directory here, and otpw_verify() will expect the
- * current working directory to still be there, so don't change it
- * between the two calls. After a successful login, check whether
- * ch->entries > 2 * ch->remaining and remind the user to generate
- * new passwords if so.
+ * Call otpw_prepare() after the user has entered their login name and
+ * has requested OTPW authentication, and after and you have retrieved
+ * their password database entry *user. After the call, ch->challenge
+ * will contain a string that you have to present to the user before
+ * they can enter the password. If ch->challenge[0] == 0 then one-time
+ * password authentication is not possible at this time. Once you have
+ * received the password, pass it to otpw_verify() along with the same
+ * struct *ch used here.
+ *
+ * This function performs a chdir() to the user's home directory, and
+ * otpw_verify() expects the current working directory to still be
+ * there, so do not change it between these two calls.
  */
 
 void otpw_prepare(struct challenge *ch, struct passwd *user, int flags);
 
 /*
- * After the one-time password has been entered, call optw_verify()
- * to find out whether the password was ok. The parameters are
- * the challenge structure filled previously by otpw_prepare() and
- * the entered password. Accept the user iff the return value is OTPW_OK.
+ * After the one-time password has been entered, call optw_verify() to
+ * find out whether the password was ok. The parameters are the
+ * challenge structure filled previously by otpw_prepare() and the
+ * password that the user has provided ('\0' terminated). Accept the
+ * user if and only if the return value is OTPW_OK.
  *
- * IMPORTANT: If otpw_prepare() has returned a non-empty challenge
- * string, then you must call otpw_verify(), even if the login was
- * aborted and you are not any more interested in the result. Otherwise
- * a stale lock might remain.
+ * IMPORTANT: If otpw_prepare() returned a non-empty challenge string
+ * (ch->challenge[0] != 0), then you MUST call otpw_verify(), even if
+ * the login was aborted and you are not any more interested in the
+ * result. Otherwise a stale lock might remain.
+ *
+ * After a successful login, check whether ch->entries > 2 *
+ * ch->remaining and remind the user to generate new passwords if
+ * so.
  */
 
 int otpw_verify(struct challenge *ch, char *password);

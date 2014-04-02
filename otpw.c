@@ -1,5 +1,5 @@
 /*
- * One-time password login capability
+ * One-time password login library
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  */

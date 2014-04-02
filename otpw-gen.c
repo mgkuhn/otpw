@@ -254,10 +254,9 @@ void gurgle(md_state *mdp, char *command)
   long len = 0, l;
   struct timeval t;
 
-  return; /*  to make valgrind work --------- REMOVE ME ----------*/
   f = popen(command, "r");
   gettimeofday(&t, NULL);
-  md_add(mdp, (unsigned char *) &t, sizeof(t));
+  md_add(mdp, &t, sizeof(t));
   if (!f) {
     fprintf(stderr, "External entropy source command '%s'\n"
 	    "(one of several) failed.\n", command);
@@ -275,7 +274,7 @@ void gurgle(md_state *mdp, char *command)
       fprintf(stderr, "'%s' added %ld bytes.\n", command, len);
   pclose(f);
   gettimeofday(&t, NULL);
-  md_add(mdp, (unsigned char *) &t, sizeof(t));
+  md_add(mdp, &t, sizeof(t));
 }
 
 
@@ -316,7 +315,7 @@ void rbg_seed(unsigned char *r)
   entropy.pid = getpid();
   entropy.ppid = getppid();
 
-  md_add(&md, (unsigned char *) &entropy, sizeof(entropy));
+  md_add(&md, &entropy, sizeof(entropy));
 
   md_close(&md, r);
 }
@@ -332,7 +331,7 @@ void rbg_iter(unsigned char *r)
 
   md_init(&md);
   gettimeofday(&t, NULL);
-  md_add(&md, (unsigned char *) &t, sizeof(t));
+  md_add(&md, &t, sizeof(t));
   md_add(&md, r, MD_LEN);
   md_add(&md, "AutomaGic", 9);  /* feel free to change this as a site key */
   md_close(&md, r);
@@ -349,6 +348,7 @@ void random_string(const void *seed, size_t slen, void *s, size_t len)
   size_t i;
   char j;
 
+  assert(len <= 0xffffffff);
   md_init(&md);
   md_add(&md, seed, slen);
   md_close(&md, r);
@@ -359,8 +359,8 @@ void random_string(const void *seed, size_t slen, void *s, size_t len)
     j = i >> 16;  md_add(&md, &j, 1);
     j = i >> 8;   md_add(&md, &j, 1);
     j = i;        md_add(&md, &j, 1);
-    md_add(&md, r, MD_LEN);
-    md_add(&md, seed, slen);
+    md_add(&md, r, MD_LEN);   /* this lines does not add entropy */
+    md_add(&md, seed, slen);  /* that is not already added here! */
     md_close(&md, r);
   }
 }
@@ -420,7 +420,7 @@ void conv_base32(char *s, const unsigned char *v, int chars)
 
 /*
  * Normalize a password by removing whitespace etc. and converting
- * l1| -> I, 0 -> O, \ -> /, just like otpw_verify() does
+ * l1| -> I, 0 -> O, \ -> /, just like otpw_verify() does.
  */
 void pwnorm(char *password) {
   char *src, *dst;
@@ -461,6 +461,8 @@ void pwnorm(char *password) {
  * Input:      vr        random bit string
  *             vlen      length of vr in bytes
  *             type      0: modified base-64 encoding
+ *                       1: sequence of 4-letter words
+ *                       2: base-32 encoding (lowercase plus digits)
  *             entropy   requested minimum entropy of password
  *             buf       buffer for returning zero-terminated output password
  *             buflen    length of buffer in bytes

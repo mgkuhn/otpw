@@ -58,13 +58,13 @@
 
 /*
  * Stored hash is OTPW_HLEN characters or OTPW_HLEN*6 bits long.
- * A reasonable value is 3 (72 bits).
+ * A reasonable value is 12 (72 bits).
  */
 
 #define OTPW_HLEN 12
 
 /*
- * Characteristic first line that allows recognicion of an OTPW file
+ * Characteristic first line that allows recognition of an OTPW file
  */
 
 #define OTPW_MAGIC "OTPW1\n"
