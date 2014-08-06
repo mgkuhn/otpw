@@ -14,9 +14,6 @@
  *
  */
 
-static char const rcsid[] =
-  "$Id: pam_otpw.c,v 1.7 2004-03-21 11:31:34 mgk25 Exp $";
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,8 +53,6 @@ void log_message(int priority, pam_handle_t *pamh, const char *format, ...)
   snprintf(logname, sizeof(logname), "%s(" MODULE_NAME ")", service);
   
   va_start(args, format);
-  /* other PAM modules seem to use LOG_AUTH, which the man page
-   * marked as deprecated, so we use LOG_AUTHPRIV instead */
   openlog(logname, LOG_CONS | LOG_PID, LOG_AUTHPRIV);
   vsyslog(priority, format, args);  /* from BSD, not POSIX */
   va_end(args);
