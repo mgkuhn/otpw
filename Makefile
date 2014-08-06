@@ -9,7 +9,10 @@ VERSION=1.4
 CC=gcc
 CFLAGS=-O -ggdb -W -Wall -Wno-unused-result -fPIC
 
-TARGETS=otpw-gen demologin pam_otpw.so
+%.gz: %
+	gzip -9c $< >$@
+
+TARGETS=otpw-gen demologin pam_otpw.so pam_otpw.8.gz otpw-gen.1.gz
 
 all: $(TARGETS)
 
@@ -35,8 +38,29 @@ release:
 	rsync -t otpw-$(VERSION).tar.gz $(HOME)/public_html/download/
 	rsync -t otpw.html $(HOME)/public_html/
 
-install-pam: pam_otpw.so
-	cp $+ /lib/security/
+#PAMLIB=/lib/security
+PAMLIB=/lib/x86_64-linux-gnu/security
+
+install: install-pam install-gen
+
+install-pam: pam_otpw.so pam_otpw.8.gz
+	rsync -t pam_otpw.so $(PAMLIB)/
+	rsync -t pam_otpw.8.gz /usr/share/man/man8/
+	perl -i.bak -pe 's/^(\@include common-auth)$$/\# $$1\nauth required pam_otpw.so/' /etc/pam.d/sshd
+	perl -i.bak -pe 's/^(ChallengeResponseAuthentication\s+)no$$/$$1yes/' \
+	  /etc/ssh/sshd_config
+	killall -SIGHUP sshd
+
+install-gen: otpw-gen otpw-gen.1.gz
+	rsync -t otpw-gen /usr/bin/
+	rsync -t otpw-gen.1.gz /usr/share/man/man1/
+
+uninstall:
+	rm -f $(PAMLIB)/pam_otpw.so /usr/share/man/man8/pam_otpw.8.gz
+	rm -f /usr/bin/otpw-gen /usr/share/man/man1/otpw-gen.1.gz
 
 clean:
 	rm -f $(TARGETS) *~ *.o core
+
+test-login:
+	ssh -o PreferredAuthentications=keyboard-interactive localhost
