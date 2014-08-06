@@ -9,7 +9,6 @@
 
 #include <pwd.h>
 #include <sys/types.h>
-#include "conf.h"
 #include "md.h"
 
 /* password authentication results (returned by otpw_verify()) */
@@ -30,18 +29,22 @@
  */
 
 struct challenge {
-  char challenge[81];        /* print this string before "Password:" */
-  int passwords;             /* number of req. passwords (0, 1, OTPW_MULTI) */
-  int locked;                /* flag, whether lock has been set */
-  int entries;               /* number of entries in OTPW_FILE */
-  int pwlen;                 /* number of characters in password */
-  int remaining;             /* number of remaining unused OTPW_FILE entries */
-  uid_t uid;                 /* effective uid for OTPW_FILE/OTPW_LOCK access */
-  gid_t gid;                 /* effective gid for OTPW_FILE/OTPW_LOCK access */
-  int selection[OTPW_MULTI]; /* positions of the requested passwords */
-  char hash[OTPW_MULTI][OTPW_HLEN + 1];
-                             /* base64 hash value of the requested passwords */
-  int flags;                 /* 1 : debug messages, 2: no locking */
+  char challenge[81];   /* print this string before "Password:" */
+  int passwords;        /* number of req. passwords (0, 1, otpw_multi) */
+  int locked;           /* flag, whether lock has been set */
+  int entries;          /* number of entries in OTPW file */
+  int pwlen;            /* number of characters in password */
+  int challen;          /* number of characters in challenge string */
+  int hlen;             /* number of characters in hash value */
+  int remaining;        /* number of remaining unused OTPW file entries */
+  uid_t uid;            /* effective uid for OTPW file/lock access */
+  gid_t gid;            /* effective gid for OTPW file/lock access */
+  int *selection;       /* position of the otpw_multi requested passwords */
+  char **hash;          /* base64 hash values of the otpw_multi requested
+			   passwords, each otpw_hlen+1 bytes long */
+  int flags;            /* 1 : debug messages, 2: no locking */
+  char *filename;       /* path of .otpw file (malloc'ed) */
+  char *lockfilename;   /* path of .optw.lock file (malloc'ed) */
 };
 
 /*
@@ -53,10 +56,6 @@ struct challenge {
  * password authentication is not possible at this time. Once you have
  * received the password, pass it to otpw_verify() along with the same
  * struct *ch used here.
- *
- * This function performs a chdir() to the user's home directory, and
- * otpw_verify() expects the current working directory to still be
- * there, so do not change it between these two calls.
  */
 
 void otpw_prepare(struct challenge *ch, struct passwd *user, int flags);
@@ -79,5 +78,15 @@ void otpw_prepare(struct challenge *ch, struct passwd *user, int flags);
  */
 
 int otpw_verify(struct challenge *ch, char *password);
+
+/* some global variables with configuration options */
+
+extern char *otpw_file;
+extern char *otpw_locksuffix;
+extern int otpw_multi;
+extern int otpw_hlen;
+extern char *otpw_magic;
+extern double otpw_locktimeout;
+extern struct passwd *otpw_pseudouser;
 
 #endif
