@@ -35,7 +35,7 @@ char *entropy_cmds[] = {
   "PATH=/usr/ucb:/bin:/usr/bin;ps lax",
   "last | head -50",
   "uptime;netstat -n;hostname;date;w",
-  "cd $HOME; cat .pgp/randseed.bin .ssh/random_seed .otpw 2>&1"
+  "cat $HOME/.pgp/randseed.bin $HOME/.ssh/random_seed $HOME/.otpw 2>&1"
   /* too slow: "PATH=/usr/bin/X11/;xwd -root -silent 2>&1||xwd -root 2>&1" */
 };
 
