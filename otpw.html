@@ -1,25 +1,28 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
-<TITLE>OTPW - a one-time password login package</TITLE>
+<TITLE>OTPW – a one-time password login package</TITLE>
 <META NAME="keywords" CONTENT="computer security, S/KEY, Ssh,
 secure login, password sniffing, eavesdropping, OTPW">
 <META NAME="description" CONTENT="Free implementation of a one-time
 password scheme allowing remote access from untrusted terminals.">
+<META http-equiv=Content-Type content="text/html; charset=UTF-8">
+<link rel="stylesheet" href="https://www.cl.cam.ac.uk/~mgk25/default.css"
+      type="text/css">
 </HEAD>
 
-<BODY BGCOLOR="#EFEFEF" TEXT="#000000">
-<H1>OTPW &ndash; A one-time password login package</H1>
+<BODY>
+<H1>OTPW – A one-time password login package</H1>
 
-<P><A HREF="http://www.cl.cam.ac.uk/~mgk25/">Markus Kuhn</A>, Computer
+<P><A HREF="https://www.cl.cam.ac.uk/~mgk25/">Markus Kuhn</A>, Computer
 Laboratory, University of Cambridge
 
-<P><A HREF="http://www.cl.cam.ac.uk/~mgk25/otpw.html">Latest release</A>:
+<P><A HREF="https://www.cl.cam.ac.uk/~mgk25/otpw.html">Latest release</A>:
 Version 1.3, 2003-09-30
 
-<H2>Abstract</H2>
+<H2 id="abstract">Abstract</H2>
 
-The OTPW package consists of the one-time-password generator
+<P>The OTPW package consists of the one-time-password generator
 <CITE>otpw-gen</CITE> plus two verification routines
 <CITE>otpw_prepare()</CITE> and <CITE>otpw_verify()</CITE> that can
 easily be added to programs such as <CITE>login</CITE> or
@@ -30,15 +33,15 @@ reasonably secure user authentication over insecure network lines. The
 user carries a password list on paper. The scheme is designed to be
 robust against theft of the paper list and race-for-the-last-letter
 attacks. Cryptographic hash values of the one-time passwords are
-stored for verification in the user's home directory.
+stored for verification in the user’s home directory.
 
-<H2>Introduction</H2>
+<H2 id="intro">Introduction</H2>
 
 <P>A well-known classic vulnerability of the Internet application
 protocol suite is the frequent cleartext transfer of passwords in the
 telnet, rsh, and ftp protocols. Modern replacements for these
 protocols such as <A HREF="http://www.cs.hut.fi/~ylo/">Tatu
-Yl&ouml;nen</A>'s <A
+Ylönen</A>’s <A
 HREF="http://www.ietf.org/html.charters/secsh-charter.html">Secure
 Shell</A> allow comfortable and secure remote sessions and file
 transfers over network connection that are not trusted to provide
@@ -70,10 +73,10 @@ either S/KEY or <A HREF=
 completely independent and different design, which I believe fulfils
 my functional and security requirements better.
 
-<H2>How it works</H2>
+<H2 id="operation">How it works</H2>
 
 <P>One-time password authentication with the OTPW package is
-accomplished via a file <CITE>.otpw</CITE> located in the user's home
+accomplished via a file <CITE>.otpw</CITE> located in the user’s home
 directory. No state is kept in any system-wide files, therefore OTPW
 does not introduce any new setuid root programs. As long as a user
 does not have <CITE>.otpw</CITE> in her home directory, the
@@ -110,15 +113,15 @@ where necessary.
 <P>Fetch the printed list immediately from the printer, fold it, and
 keep it with you. The list shows the machine name and the creation
 time to allow users to find the latest list for the right machine. It
-does not show the user's name, because nobody is supposed to have the
+does not show the user’s name, because nobody is supposed to have the
 list of anyone else, but printer drivers such as <CITE>a2ps</CITE>
 might add it. Only a single list is required for a set of networked
 machines on which the user has a common home directory.
 
 <P>By default, <CITE>otpw-gen</CITE> generates 60 lines of output. Use
-the command line options <SAMP>-h</SAMP>&nbsp;<VAR>lines</VAR>,
-<SAMP>-w</SAMP>&nbsp;<VAR>columns</VAR>, and
-<SAMP>-s</SAMP>&nbsp;<VAR>pages</VAR> to specify the length of the
+the command line options <SAMP>-h</SAMP> <VAR>lines</VAR>,
+<SAMP>-w</SAMP> <VAR>columns</VAR>, and
+<SAMP>-s</SAMP> <VAR>pages</VAR> to specify the length of the
 output. No more than 1000 passwords will be generated at a time.
 
 <P>Where one-time-password authentication is used, the password prompt
@@ -164,7 +167,7 @@ mechanism by locking all passwords. The triple challenge ensures that
 many ten thousand network connections would be necessary to perform a
 race attack on the same password triple, which is not practical. The
 OTPW package creates a symbolic link <SAMP>.otpw.lock</SAMP> in the
-user's home directory to lock the first requested password while its
+user’s home directory to lock the first requested password while its
 input is pending. If a system crash created a stale lock, it will be
 removed after 24 hours.
 
@@ -222,14 +225,14 @@ removed after 24 hours.
 <P>Every subsequent line is a password number followed by the <A HREF=
 "http://www.esat.kuleuven.ac.be/~bosselae/ripemd160.html">RIPEMD-160</A>
 hash value of the prefix password concatenated with one of the printed
-one-time passwords. Only the first 12*6=72 bits of the hash value
+one-time passwords. Only the first 12×6 = 72 bits of the hash value
 encoded in the same modified base-64 encoding that was used to
 generate the passwords is stored there. As soon as a one-time password
 has been entered correctly, the corresponding <SAMP>.otpw</SAMP> line
 will be overwritten with hyphens to prevent any reuse of this
 password.
 
-<H2>Installation</H2>
+<H2 id="install">Installation</H2>
 
 <P>Get the OTPW package <SAMP>otpw-*.*.tar.gz</SAMP> from <A
 HREF="http://www.cl.cam.ac.uk/~mgk25/download/">
@@ -286,7 +289,7 @@ authorized, otherwise do not. It is very important that
 <SAMP>otpw_prepare()</SAMP> has returned successfully (i.e., with a
 non-empty <SAMP>ch.challenge</SAMP> string), as otherwise a stale lock
 might remain set. In <SAMP>otpw_prepare()</SAMP>, the current working
-directory will be changed to the user's home directory, and
+directory will be changed to the user’s home directory, and
 <SAMP>otpw_verify()</SAMP> expects that it is still there. If after
 <SAMP>otpw_verify()</SAMP> has returned, the condition
 <SAMP>ch.entries > 2 * ch.remaining</SAMP> is true and half of all
@@ -301,7 +304,7 @@ in order to access the password file in the home directory. OTPW does
 not use any of the POSIX advisory file locking system calls, as those
 often do not work reliably over network file systems.
 
-<H3>PAM installation</H3>
+<H3 id="pam">PAM installation</H3>
 
 <P>If your system supports Pluggable Authentication Modules
 [Mor01,XSSO], then simply compile the shared library
@@ -310,7 +313,7 @@ PAM modules reside (under Linux usually <SAMP>/lib/security/</SAMP>).
 Then edit the PAM configuration file for the application in which you
 want to use OTPW, as described in your <A
 HREF="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam.html">PAM
-System Administrators' Guide</A>. The <CITE>pam_otpw.so</CITE>
+System Administrators’ Guide</A>. The <CITE>pam_otpw.so</CITE>
 provides both an authentication and a session component. The
 authentication component asks for and verifies a one-time password,
 the session component prints after each successful login a reminder on
@@ -333,9 +336,9 @@ add in <SAMP>/etc/ssh/sshd_config</SAMP> the lines
 
 <P>To force OpenSSH to use PAM authentication (instead of its own
 hostbased or publickey methods, which it normally tries first), use
-"<SAMP>ssh -o PreferredAuthentications=keyboard-interactive</SAMP>".
+“<SAMP>ssh -o PreferredAuthentications=keyboard-interactive</SAMP>”.
 
-<H2>Design rationale</H2>
+<H2 id="rationale">Design rationale</H2>
 
 <P>Unlike S/KEY [Hal94, HM96], OTPW is not based on the Lamport scheme
 [Lam77] in which every one-time password is the one-way hash value of
@@ -346,7 +349,7 @@ do not store the encrypted passwords as suggested by Rubin [Rub96], in
 order to keep the host free of files with secrets. Both proposals
 aimed to save memory in the host system. Instead, we store the one-way
 hash value of every single password in a potentially widely readable
-file in the user's home directory. For instance, hash values of 300
+file in the user’s home directory. For instance, hash values of 300
 passwords (a typical A4 page) require only a four kilobyte long
 <SAMP>.otpw</SAMP> file, a typically negligible amount of storage
 space.
@@ -382,8 +385,9 @@ have on a password list. Lists of short words on the other hand are
 much faster to memorize. OTPW can handle arbitrary password generation
 algorithms, as long as the length of the password is fixed. In the
 current version, <SAMP>otpw-gen</SAMP> can generate both base-64
-encoded (option -p0) and 4-letter-word encoded (option -p1) passwords
-with a user-specified entropy (option -e).
+encoded (option <samp>-p</samp>) and 4-letter-word encoded (option
+<samp>-p1</samp>) passwords with a user-specified entropy (option
+<samp>-e</samp>).
 
 <P>The prefix password ensures that neither stealing the password list
 nor eavesdropping the line alone can provide unauthorized access.
@@ -411,13 +415,11 @@ attack while the authorized user finishes password entry.
 parts of the PAM wrapper and prepared a test setup. Also thanks to Kan
 Zhang, Piete Brooks and David Wheeler for useful suggestions.
 
-<H2>Known problems</H2>
-
-<a name="opensshbug"></a>
+<H2 id="bugs">Known problems</H2>
 
 <UL>
 
-<LI>The OTPW PAM module exposes a <a
+<LI id="opensshbug">The OTPW PAM module exposes a <a
 href="http://bugzilla.mindrot.org/show_bug.cgi?id=632">bug</a> in <a
 href="http://www.openssh.com/">OpenSSH</a> 3.6.1 (and possibly many
 other versions) under Linux:
@@ -429,16 +431,16 @@ get a triple-password request prompted at the next login attempt.
 
 <p><b>Analysis:</b> Debugging the sshd process with a breakpoint at
 the start of <SAMP>pam_end()</SAMP> shows that when ssh aborts the
-connection while sshd is inside the "conversation function" that sshd
+connection while sshd is inside the “conversation function” that sshd
 provides to the PAM system, then the conversation function never
 returns to PAM. Instead sshd calls <SAMP>pam_end()</SAMP> directly
 from inside the conversation function. This is in violation of <em><a
 href="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam_appl.html">The
-Linux-PAM application developers' guide</a></em> (draft 0.73,
+Linux-PAM application developers’ guide</a></em> (draft 0.73,
 2000-12-02), which states in <a
 href="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam_appl-3.html#ss3.2">section
-3.2.1</a>, page 14 that "should an error occur the application should
-[...] simply return PAM_CONV_ERR". Linux-PAM keeps in
+3.2.1</a>, page 14 that “should an error occur the application should
+[...] simply return PAM_CONV_ERR”. Linux-PAM keeps in
 <SAMP>pamh->caller_is</SAMP> track of whether the calling thread was
 supposed to come from the application (caller_is=2) or from the PAM
 module (caller_is=1). (See
@@ -449,8 +451,8 @@ its <SAMP>pamh->caller_is=1</SAMP> value that <SAMP>pam_end()</SAMP>
 was accidentally called by the module. As a result, none of the PAM
 data structures are cleaned up, one side effect of which is that the
 OTPW lock file remains in place. Sshd reacts on the failure of
-<SAMP>pam_end()</SAMP> with the syslog message "Cannot release PAM
-authentication[4]: System error". Another security-relevant side
+<SAMP>pam_end()</SAMP> with the syslog message “Cannot release PAM
+authentication[4]: System error”. Another security-relevant side
 effect is that the memory scrubbing that PAM normally applies
 carefully to any password buffers never takes place!
 
@@ -458,31 +460,13 @@ carefully to any password buffers never takes place!
 OpenSSH developers, as it also breaks the proper deallocation of
 buffers with secrets.
 
-<a name="ntpl"></a>
-
-<LI><b>Observation:</b> When used under openssh-3.5p1-11 on Red Hat
-Linux 9 (kernel 2.4.20, glibc 2.3.2), otpw.c:otpw_prepare() has been
-observed to hang in one of the early calls to fgets().
-
-<p><b>Workaround:</b> This could be related to the notorius futex
-problems with the Native Posix Threading Library (NTPL) and has been
-cured by invoking sshd with the environment variable
-LD_ASSUME_KERNEL=2.4.19 to cause glibc to use the good old pthreads
-instead. Piete Brooks suggested to add to /etc/sysconfig/sshd the
-lines
-
-<pre>
-  # Avoid RH futex problems -- use /lib/i686/libc.so.6 rather than /lib/tls/
-  export LD_ASSUME_KERNEL=2.4.19
-</pre>
-
 </UL>
 
-<H2>License</H2>
+<H2 id="license">License</H2>
 
-<p>OTPW &ndash; A one-time password login package
+<p>OTPW – A one-time password login package
 
-<p>Copyright &#xa9; 1998-2003 Markus Kuhn
+<p>Copyright &#xa9; 1998–2003 Markus Kuhn
 
 <p>This program is free software; you can redistribute it and/or
 modify it under the terms of the <a
@@ -496,11 +480,11 @@ WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 General Public License for more details.
 
-<H2>References</H2>
+<H2 id="refs">References</H2>
 
 <P>[Lam77] &nbsp; Leslie Lamport: <CITE>Password Authentication with Insecure
 Communication</CITE>, Communications of the ACM, Vol 24, No 11,
-November 1981, pp 770-772
+November 1981, pp 770–772
 
 <P>[Hal94] &nbsp; Neil Haller, <CITE><A
 HREF="ftp://cag.lcs.mit.edu/pub/dm/papers/haller:skey.ps.gz">The S/KEY
@@ -523,13 +507,13 @@ RIPEMD-160, a strengthened version of RIPEMD</A></CITE>, Fast Software
 Encryption, LNCS 1039, D. Gollmann, Ed., Springer-Verlag,
 1996, pp. 71-82.
 
-<P>[ISO03] &nbsp; ISO/IEC 10118-3, <CITE>Information technology - Security
-techniques - Hash-functions - Part 3: Dedicated hash-functions</CITE>,
+<P>[ISO03] &nbsp; ISO/IEC 10118-3, <CITE>Information technology — Security
+techniques — Hash-functions — Part 3: Dedicated hash-functions</CITE>,
 International Organization for Standardization, Geneva, 2003.
 
 <P>[FB96] &nbsp; Ned Freed, Nathaniel S. Borenstein: <CITE><A HREF=
 "http://www.ietf.org/rfc/rfc2045.txt">Multipurpose Internet Mail
-Extensions (MIME) - Part One: Format of Internet Message
+Extensions (MIME) – Part One: Format of Internet Message
 Bodies</A></CITE>, RFC 2045, November 1996.
 
 <P>[Mor01] &nbsp; Andrew G. Morgan:
@@ -537,11 +521,11 @@ Bodies</A></CITE>, RFC 2045, November 1996.
 
 <P>[XSSO] &nbsp; <A
 HREF="http://www.opengroup.org/pubs/catalog/p702.htm">X/Open Single
-Sign-On Service (XSSO) - Pluggable Authentication</A>. June 1997.
+Sign-On Service (XSSO) – Pluggable Authentication</A>. June 1997.
 
 <P><A HREF= "http://www.cl.cam.ac.uk/~mgk25/">Markus Kuhn</A>
-<BR><SMALL>created 1997-11-25 --
-last modified 2003-11-10 --
-http://www.cl.cam.ac.uk/~mgk25/otpw.html</SMALL>
+<p class=footdate>created 1997-11-25 –
+last modified 2014-08-07 –
+http://www.cl.cam.ac.uk/~mgk25/otpw.html
 </BODY>
 </HTML>
