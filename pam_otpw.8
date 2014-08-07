@@ -41,6 +41,15 @@ lock file and not to generate any. With this option,
 .I pam_otpw.so
 will never ask for several passwords simultaneously.
 
+.SH PSEUDO-USER INSTALLATION
+If a system pseudo user “otpw” exists in the user database (with UID <
+1000), then the password hash files will not be stored in the user's
+home directory. Instead of looking for
+.B ~john/.otpw.lock
+the file has to be located in the home directory of the pseudo user
+“otpw”, and be named after the user (e.g. “/var/lib/otpw/john”). It
+will be accessed with the effective UID and GID of that pseudo user.
+
 .SH AUTHOR
 The
 .I OTPW

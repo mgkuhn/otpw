@@ -79,6 +79,27 @@ void otpw_prepare(struct challenge *ch, struct passwd *user, int flags);
 
 int otpw_verify(struct challenge *ch, char *password);
 
+/* buffer to hold the result of getpwnam_r() or getpwuid_r();
+ * essentially a struct passwd plus space for the strings
+ * that it might refer to */
+struct otpw_pwdbuf {
+  struct passwd pwd;
+  size_t buflen;
+  char buf[0]; /* actual size is buflen if allocated by otpw_malloc_pwdbuf() */
+};
+
+/* some functions for dealing with struct pwdbuf */
+
+int otpw_getpwnam(const char *name, struct otpw_pwdbuf **result);
+int otpw_getpwuid(uid_t uid, struct otpw_pwdbuf **result);
+
+/*
+ * Check if the user otpw_autopseudouser exists and had a UID of not
+ * higher than otpw_autopseudouser_maxuid. If so, malloc and set
+ * otpw_pseudouser accordingly.
+ */
+int otpw_set_pseudouser();
+
 /* some global variables with configuration options */
 
 extern char *otpw_file;
@@ -87,6 +108,6 @@ extern int otpw_multi;
 extern int otpw_hlen;
 extern char *otpw_magic;
 extern double otpw_locktimeout;
-extern struct passwd *otpw_pseudouser;
+extern struct otpw_pwdbuf *otpw_pseudouser;
 
 #endif

@@ -52,3 +52,17 @@ Changes in version 1.4 (2004-03-??)
 
   - new options -E and -P to control the entropy and form of the
     master key generated with -m
+
+Changes in version 1.5 (2014-08-07)
+
+  - support for pseudo-user installation: if system-user “otpw” exists
+    and otpw-gen is SETUID and owned by “otpw”, the hash file will be
+    called ~otpw/john instead of ~john/.otpw, and be out of reach of
+    the user
+
+  - otpw-gen: new option -l to remove lock symlink
+    (useful if the lock is owned by “otpw” rather than the user)
+
+  - ABI of otpw.c/otpw.h changed to allow for better run-time configuration
+
+  - minor cleanup, mainly to reduce warnings of modern compilers

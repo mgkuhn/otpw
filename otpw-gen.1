@@ -1,4 +1,4 @@
-.TH OTPW-GEN 1 "2004-03-28"
+.TH OTPW-GEN 1 "2014-08-07"
 .SH NAME
 otpw-gen \- one-time password generator
 .SH SYNOPSIS
@@ -72,7 +72,8 @@ the three requested one-time passwords. This fall-back mode is
 activated by the existence of the lock file
 .BR ~/.otpw.lock .
 If it was left over by some malfunction, it can safely be deleted
-manually.
+manually using option
+.BR -l .
 
 Call
 .B otpw-gen
@@ -169,6 +170,25 @@ type of password can be selected with options
 .I \-e
 and
 .IR \-p .
+.TP
+.BI \-l
+Remove any lock file left by previous authentication attempts, then exit.
+
+.SH PSEUDO-USER INSTALLATION
+If the
+.B otpw-gen
+binary, owned by some system pseudo user (e.g., “otpw”), has the
+SETUID bit set, then the password hash file will be owned by and
+stored in the home directory of that pseudo user (e.g.,
+“/var/lib/otpw”), using the user's name instead of “.otpw”. This way,
+the hash files are out of reach from the users, and cannot be
+manipulated by tools other than
+.BR otpw-gen ,
+which can help to enforce policies about how passwords are generated.
+Storing the password hash files outside the user's home directory can
+also be useful where the home directory may not yet be accessible
+during login.
+
 .SH AUTHOR
 The
 .I OTPW

@@ -29,7 +29,7 @@ int main(int argc, char **argv)
   char username[81] = "", password[81];
   struct termios term, term_old;
   int stdin_is_tty = 0, use_otpw, result;
-  struct passwd *pwd;
+  struct otpw_pwdbuf *user;
   struct challenge ch;
   int i, debug = 0;
 #ifdef SHADOW_PW
@@ -69,11 +69,12 @@ int main(int argc, char **argv)
     username[strlen(username) - 1] = 0;
   
   /* read the user database entry */
-  pwd = getpwnam(username);
+  otpw_getpwnam(username, &user);
 
   /* in one-time password mode, set lock and output challenge string */
   if (use_otpw) {
-    otpw_prepare(&ch, pwd, debug ? OTPW_DEBUG : 0);
+    ch.challenge[0] = 0;
+    if (user) otpw_prepare(&ch, &user->pwd, debug ? OTPW_DEBUG : 0);
     if (!ch.challenge[0]) {
       printf("Sorry, one-time password entry not possible at the moment.\n");
       exit(1);
@@ -124,11 +125,12 @@ int main(int argc, char **argv)
     /* old-style many-time password check */
 #ifdef SHADOW_PW
     spwd = getspnam(username);
-    if (pwd && spwd) pwd->pw_passwd = spwd->sp_pwdp;
+    if (user && spwd) user->pwd.pw_passwd = spwd->sp_pwdp;
     if (geteuid() != 0)
       fprintf(stderr, "Shadow password access requires root priviliges.\n");
 #endif
-    if (!pwd || strcmp(crypt(password, pwd->pw_passwd), pwd->pw_passwd))
+    if (!user || strcmp(crypt(password, user->pwd.pw_passwd),
+			user->pwd.pw_passwd))
       printf("Login incorrect\n");
     else
       printf("Login correct\n");

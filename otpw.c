@@ -27,7 +27,7 @@
 /* Some global variables with configuration options */
 
 /* Path for the one-time password file relative to home directory of
- * the user who tries to log in. (Ignored if otpw_pseudo != NULL) */
+ * the user who tries to log in. (Ignored if otpw_pseudouser != NULL) */
 char *otpw_file   = ".otpw";
 
 /* Suffix added to the one-time password filename to create lock symlink */
@@ -55,7 +55,81 @@ char *otpw_magic = "OTPW1\n";
  * "/var/lib/otpw"), and will have the name of the user who tries to
  * log in instead of ".otpw".
  */
-struct passwd *otpw_pseudouser = NULL;
+struct otpw_pwdbuf *otpw_pseudouser = NULL;
+
+char *otpw_autopseudouser = "otpw";
+long otpw_autopseudouser_maxuid = 999;
+
+/* allocate a struct otpw_pwdbuf (of suitable size to also hold the strings) */
+static struct otpw_pwdbuf *otpw_malloc_pwdbuf(void)
+{
+  struct otpw_pwdbuf *p;
+  long buflen;
+  
+  buflen = sysconf(_SC_GETPW_R_SIZE_MAX); /* typical value: 1024 */
+  /* fprintf(stderr, "_SC_GETPW_R_SIZE_MAX = %ld\n", buflen); */
+  if (buflen < 0) return NULL;
+  p = (struct otpw_pwdbuf *) malloc(sizeof(struct otpw_pwdbuf) + buflen);
+  if (p) p->buflen = buflen;
+  return p;
+}
+
+/* mallocating variant of getpwnam_r */
+int otpw_getpwnam(const char *name, struct otpw_pwdbuf **result)
+{
+  struct otpw_pwdbuf *p;
+  struct passwd *r;
+  int err = ENOMEM;
+  if ((p = otpw_malloc_pwdbuf())) {
+    err = getpwnam_r(name, &p->pwd, p->buf, p->buflen, &r);
+    if (r) {
+      *result = p;
+    } else {
+      *result = NULL;
+      free(p);
+    }
+  }
+  return err;
+}
+
+/* mallocating variant of getpwuid_r */
+int otpw_getpwuid(uid_t uid, struct otpw_pwdbuf **result)
+{
+  struct otpw_pwdbuf *p;
+  struct passwd *r;
+  int err = ENOMEM;
+  if ((p = otpw_malloc_pwdbuf())) {
+    err = getpwuid_r(uid, &p->pwd, p->buf, p->buflen, &r);
+    if (r) {
+      *result = p;
+    } else {
+      *result = NULL;
+      free(p);
+    }
+  }
+  return err;
+}
+
+
+/*
+ * Check if the user otpw_autopseudouser exists and has a UID of not
+ * higher than otpw_autopseudouser_maxuid. If so, malloc and set
+ * pseudouser accordingly. Usually: pseudouser == &otpw_pseudouser.
+ */
+int otpw_set_pseudouser(struct otpw_pwdbuf **pseudouser)
+{
+  int err;
+  err = otpw_getpwnam(otpw_autopseudouser, pseudouser);
+  if (otpw_pseudouser) {
+    if (otpw_autopseudouser_maxuid >= 0 &&
+	otpw_pseudouser->pwd.pw_uid > otpw_autopseudouser_maxuid) {
+      err = EINVAL;
+      free(*pseudouser);
+      otpw_pseudouser = NULL;
+    }
+  }
+  return err;
+}
 
 /*
  * A random bit generator. Hashes together some quick sources of entropy
@@ -196,17 +270,17 @@ void otpw_prepare(struct challenge *ch, struct passwd *user, int flags)
   
   /* prepare filename of one-time password file */
   if (otpw_pseudouser) {
-    ch->filename = (char *) malloc(strlen(otpw_pseudouser->pw_dir) + 1 + 
+    ch->filename = (char *) malloc(strlen(otpw_pseudouser->pwd.pw_dir) + 1 + 
 				   strlen(user->pw_name) + 1);
     if (!ch->filename) {
       DEBUG_LOG("malloc() for ch->filename failed");
       goto cleanup;
     }
-    strcpy(ch->filename, otpw_pseudouser->pw_dir);
+    strcpy(ch->filename, otpw_pseudouser->pwd.pw_dir);
     strcat(ch->filename, "/");
     strcat(ch->filename, user->pw_name);
-    ch->uid = otpw_pseudouser->pw_uid;
-    ch->gid = otpw_pseudouser->pw_gid;
+    ch->uid = otpw_pseudouser->pwd.pw_uid;
+    ch->gid = otpw_pseudouser->pwd.pw_gid;
   } else {
     ch->filename = (char *) malloc(strlen(user->pw_dir)+1+strlen(otpw_file)+1);
     if (!ch->filename) {
@@ -221,7 +295,7 @@ void otpw_prepare(struct challenge *ch, struct passwd *user, int flags)
   }
   /* prepare associated lock filename */
   ch->lockfilename = (char *) malloc(strlen(ch->filename) +
-				     strlen(otpw_locksuffix));
+				     strlen(otpw_locksuffix) + 1);
   if (!ch->lockfilename) {
     DEBUG_LOG("malloc() for ch->lockfilename failed");
     goto cleanup;

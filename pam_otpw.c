@@ -1,5 +1,5 @@
 /*
- * One-time password login capability
+ * One-time password login PAM module
  *
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  * Steven Murdoch <http://www.cl.cam.ac.uk/~sjm217/>
@@ -53,7 +53,7 @@ void log_message(int priority, pam_handle_t *pamh, const char *format, ...)
   snprintf(logname, sizeof(logname), "%s(" MODULE_NAME ")", service);
   
   va_start(args, format);
-  openlog(logname, LOG_CONS | LOG_PID, LOG_AUTHPRIV);
+  openlog(logname, LOG_CONS | LOG_PID, LOG_AUTH);
   vsyslog(priority, format, args);  /* from BSD, not POSIX */
   va_end(args);
   closelog();
@@ -207,7 +207,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
   int retval;
   const char *username;
   char *password;
-  struct passwd *pwd;
+  struct otpw_pwdbuf *user;
   struct challenge *ch = NULL;
   int i, debug = 0, otpw_flags = 0;
 
@@ -239,8 +239,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 		getuid(), geteuid(), getgid(), getegid()));
 
   /* consult POSIX password database (to find homedir, etc.) */
-  pwd = getpwnam(username);
-  if (!pwd) {
+  otpw_getpwnam(username, &user);
+  if (!user) {
     log_message(LOG_NOTICE, pamh, "username not found");
     return PAM_USER_UNKNOWN;
   }
@@ -259,8 +259,16 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
     return PAM_AUTHINFO_UNAVAIL;
   }
 
+  /* check whether a pseudo-user for owning OTPW files exist */
+  otpw_set_pseudouser(&otpw_pseudouser);
+
   /* prepare OTPW challenge */
-  otpw_prepare(ch, pwd, otpw_flags);
+  otpw_prepare(ch, &user->pwd, otpw_flags);
+  free(user);
+  if (otpw_pseudouser) {
+    free(otpw_pseudouser);
+    otpw_pseudouser = NULL;
+  }
 
   D(log_message(LOG_DEBUG, pamh, "challenge: %s", ch->challenge));
   if (ch->passwords < 1) {

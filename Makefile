@@ -54,6 +54,14 @@ install-pam: pam_otpw.so pam_otpw.8.gz
 install-gen: otpw-gen otpw-gen.1.gz
 	rsync -t otpw-gen /usr/bin/
 	rsync -t otpw-gen.1.gz /usr/share/man/man1/
+	-getent passwd otpw && \
+	  chown otpw /usr/bin/otpw-gen && chmod u+s /usr/bin/otpw-gen
+
+install-pseudouser:
+	adduser --system --gecos 'Pseudouser for storing one-time password files' --home /var/lib/otpw otpw
+
+uninstall-pseudouser:
+	deluser --remove-home otpw
 
 uninstall:
 	rm -f $(PAMLIB)/pam_otpw.so /usr/share/man/man8/pam_otpw.8.gz

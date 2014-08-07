@@ -4,6 +4,8 @@
  * Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
  */
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 #include <termios.h>
 #include <assert.h>
 #include <termios.h>
@@ -577,54 +580,12 @@ int make_passwd(const void *vr, int vlen, int type, int entropy,
 }
 
 
-/* Print brief usage instructions */
-void usage(char *argv0)
-{
-  fprintf(stderr, "One-Time Password Generator v 1.4 -- Markus Kuhn\n\n");
-  fprintf(stderr, "%s [options]\n\n", argv0);
-  fprintf
-    (stderr, "Options:\n\n"
-     "\t-h <int>\tnumber of output lines (default: 60)\n"
-     "\t-w <int>\tmax width of output lines (default: 79)\n"
-     "\t-s <int>\tnumber of output pages (default: 1)\n"
-     "\t-e <int>\tminimum entropy of each one-time password [bits]\n"
-     "\t\t\t(low security: <30, default: 48, high security: >60)\n"
-     "\t-p 0\t\tpasswords from modified base64 encoding (default)\n"
-     "\t-p 1\t\tpasswords from English 4-letter words\n"
-     "\t-p 2\t\tpasswords use only lowercase letters and digits\n"
-     "\t-f <filename>\tdestination file for hashes (default: ~/%s)\n",
-     otpw_file);
-  fprintf
-    (stderr,
-     "\t-n\t\tdo not add header and footer lines to output\n"
-     "\t-o\t\tuse passwords in printed order (default: random order)\n"
-     "\t-m\t\tgenerate and display a master key for the password list\n"
-     "\t-E <int>\tminimum entropy of master key [bits] (default: 76)\n"
-     "\t-P <int>\tencoding for master key (available values as for -p)\n"
-     "\t-k\t\task for a master key and then regenerate a password\n\t\t\tlist"
-     " from it (this will not change ~/%s)\n", otpw_file);
-  fprintf
-    (stderr,
-     "\t-r\t\tsuggest a random password, then exit\n"
-     "\t-d\t\toutput debugging information\n"
-     "\nTypical uses:\n\n"
-     "  otpw-gen | lpr\n\n"
-     "    Generate password list and print it. The hash values for each "
-     "password\n    will be stored in ~/%s for use during login "
-     "verification.\n\n"
-     "  otpw-gen -h 70 -s 2 | a2ps -1B -L 70 --borders no\n\n"
-     "    Generate password list and print it with nicer formatting.\n\n",
-     otpw_file);
-  exit(1);
-}
-
-
 int main(int argc, char **argv)
 {
   unsigned char r[MD_LEN], h[MD_LEN];
   md_state md;
   int i, j, k, l;
-  struct passwd *pwd = NULL;
+  struct otpw_pwdbuf *user = NULL, *pseudouser = NULL;
   FILE *f;
   char timestr[81], hostname[81], challenge[81];
   char password1[1024], password2[1024];
@@ -640,35 +601,36 @@ int main(int argc, char **argv)
   int header_lines = 4, random_order = 1;
   int entropy = 48, emax, type = PW_BASE64;
   int key_entropy = 76, key_type = PW_BASE32;
-  int use_masterkey = 0, regenerate = 0;
+  int use_masterkey = 0, regenerate = 0, unlock = 0;
   int cols;
   time_t t;
   char *hbuf, *rndbuf;
   int rndbuflen;
   int challen = 3;    /* number of characters in challenge */
   int hbuflen = challen + otpw_hlen + 1;
+  int help = 0;
 
   assert(md_selftest() == 0);
   assert(otpw_hlen * 6 < MD_LEN * 8);
   assert(otpw_hlen >= 8);
 
   /* read command line arguments */
-  for (i = 1; i < argc; i++) {
+  for (i = 1; i < argc && !help; i++) {
     if (argv[i][0] == '-')
-      for (j = 1; j > 0 && argv[i][j] != 0; j++)
+      for (j = 1; j > 0 && argv[i][j] != 0 && !help; j++)
         switch (argv[i][j]) {
         case 'h':
-	  if (++i >= argc) usage(argv[0]);
+	  if (++i >= argc) { help = 1; break; }
 	  height = atoi(argv[i]);
           j = -1;
           break;
         case 'w':
-	  if (++i >= argc) usage(argv[0]);
+	  if (++i >= argc) { help = 1; break; };
 	  width = atoi(argv[i]);
           j = -1;
           break;
         case 's':
-	  if (++i >= argc) usage(argv[0]);
+	  if (++i >= argc) { help = 1; break; }
 	  pages = atoi(argv[i]);
 	  if (pages < 1) {
 	    fprintf(stderr, "Specify at least 1 page after -s!\n");
@@ -678,12 +640,12 @@ int main(int argc, char **argv)
           break;
 	case 'e':
 	  if (++i >= argc || (entropy = atoi(argv[i])) < 1)
-	    usage(argv[0]);
+	    { help = 1; break; }
 	  j = -1;
           break;
 	case 'E':
 	  if (++i >= argc || (key_entropy = atoi(argv[i])) < 1)
-	    usage(argv[0]);
+	    { help = 1; break; }
           j = -1;
           break;
         case 'p':
@@ -695,22 +657,22 @@ int main(int argc, char **argv)
 	    break;
 	  }
 	  if (++i >= argc)
-	    usage(argv[0]);
+	    { help = 1; break; }
 	  type = atoi(argv[i]);
 	  if (make_passwd(NULL, 0, type, 0, NULL, 0) == -1)
-	    usage(argv[0]);
+	    { help = 1; break; }
 	  j = -1;
           break;
         case 'P':
 	  if (++i >= argc)
-	    usage(argv[0]);
+	    { help = 1; break; }
 	  key_type = atoi(argv[i]);
 	  if (make_passwd(NULL, 0, key_type, 0, NULL, 0) == -1)
-	    usage(argv[0]);
+	    { help = 1; break; }
 	  j = -1;
           break;
         case 'f':
-	  if (++i >= argc) usage(argv[0]);
+	  if (++i >= argc) { help = 1; break; }
           fnout = argv[i];
 	  j = -1;
           break;
@@ -751,12 +713,108 @@ int main(int argc, char **argv)
 	  rbg_iter(r); rbg_iter(r); /* memory scrubbing */
 	  memset(password, 0xaa, pwlen); /* memory scrubbing */
 	  exit(0);
+	case 'l':
+	  unlock = 1;
+	  break;
 	default:
-          usage(argv[0]);
+          help = 1;
         }
     else {
-      usage(argv[0]);
+      help = 1;
     }
+  }
+
+  if (fnout) {
+    /* if an output file was specified, drop privileges */
+    if (getuid() != geteuid()) {
+      if (setresuid(-1, getuid(), getuid()) || getuid() != geteuid()) {
+	fprintf(stderr, "Dropping setuid privileges failed!\n");
+	exit(1);
+      }
+    }
+    if (getgid() != getegid()) {
+      if (setresgid(-1, getgid(), getgid()) || getgid() != getegid()) {
+	fprintf(stderr, "Dropping setgid privileges failed!\n");
+	exit(1);
+      }
+    }
+  } else {
+    /* construct one-time password file path from relevant passwd entries */
+    otpw_getpwuid(getuid(), &user);
+    if (!user) {
+      fprintf(stderr, "Can't access your passwd database entry!\n");
+      exit(1);
+    }
+    if (getuid() != geteuid()) {
+      /* we are setuid pseudouser */
+      otpw_getpwuid(geteuid(), &pseudouser);
+      if (!pseudouser) {
+	fprintf(stderr, "Can't access setuid pseudouser passwd entry!\n");
+	exit(1);
+      }
+      fnout = (char *) malloc(strlen(pseudouser->pwd.pw_dir) + 1 +
+			      strlen(user->pwd.pw_name) + 1);
+      if (!fnout) abort();
+      strcpy(fnout, pseudouser->pwd.pw_dir);
+      strcat(fnout, "/");
+      strcat(fnout, user->pwd.pw_name);
+    } else {
+      /* we are a normal user process */
+      fnout = (char *) malloc(strlen(user->pwd.pw_dir) + 1 +
+			      strlen(otpw_file) + 1);
+      if (!fnout) abort();
+      strcpy(fnout, user->pwd.pw_dir);
+      strcat(fnout, "/");
+      strcat(fnout, otpw_file);
+    }
+  }
+
+  if (help) {
+    /* Print brief usage instructions, then abort */
+    fprintf(stderr, "One-Time Password Generator v 1.4 -- Markus Kuhn\n\n");
+    fprintf(stderr, "%s [options]\n\n", argv[0]);
+    fprintf
+      (stderr, "Options: (default or current value in parenthesis)\n\n"
+       "  -h <int>\tnumber of output lines (60)\n"
+       "  -w <int>\tmax width of output lines (79)\n"
+       "  -s <int>\tnumber of output pages (1)\n"
+       "  -e <int>\tminimum entropy of each one-time password [bits]\n"
+       "\t\t(low security: <30, default: 48, high security: >60)\n"
+       "  -p 0\t\tpasswords from modified base64 encoding (default)\n"
+       "  -p 1\t\tpasswords from English 4-letter words\n"
+       "  -p 2\t\tpasswords use only lowercase letters and digits\n"
+       "  -f <filename>\toutput hash file (%s)\n",
+       fnout);
+    fprintf
+      (stderr,
+       "  -n\t\tdo not add header and footer lines to output\n"
+       "  -o\t\tuse passwords in printed order (default: random order)\n"
+       "  -m\t\tgenerate and display a master key for the password list\n"
+       "  -E <int>\tminimum entropy of master key [bits] (76)\n"
+       "  -P <int>\tencoding for master key (available values as for -p)\n"
+       "  -k\t\task for a master key and then regenerate a password\n\t\tlist"
+       " from it (this won't change %s)\n", fnout);
+    fprintf
+      (stderr,
+       "  -r\t\tsuggest a random password, then exit\n"
+       "  -l\t\tremove lock file %s%s, then exit\n",
+       fnout, otpw_locksuffix);
+    fprintf
+      (stderr,
+       "  -d\t\toutput debugging information\n"
+       "\nTypical uses:\n\n"
+       "  otpw-gen | lpr\n\n"
+       "    Generate password list and print it. The hash values for each "
+       "password\n    will be stored in %s for use during login "
+       "verification.\n\n"
+       "  otpw-gen -h 70 -s 2 | a2ps -1B -L 70 --borders no\n\n"
+       "    Generate password list and print it with nicer formatting.\n\n",
+       fnout);
+    exit(1);
+  }
+
+  if (unlock) {
+    goto unlock;
   }
 
   /* check and process some parameters */
@@ -811,20 +869,6 @@ int main(int argc, char **argv)
   if (debug)
     fprintf(stderr, "pwlen=%d, pwchars=%d, emax=%d, cols=%d, rows=%d\n",
 	    pwlen, pwchars, emax, cols, rows);
-
-  if (!fnout) {
-    pwd = getpwuid(getuid());
-    if (!pwd) {
-      fprintf(stderr, "Can't access your password database entry!\n");
-      exit(1);
-    }
-    /* construct one-time password file path */
-    fnout = (char *) malloc(strlen(pwd->pw_dir)+1+strlen(otpw_file)+1);
-    if (!fnout) abort();
-    strcpy(fnout, pwd->pw_dir);
-    strcat(fnout, "/");
-    strcat(fnout, otpw_file);
-  }
 
   if (!regenerate) {
     fprintf(stderr, "Generating random seed ...\n");
@@ -1068,13 +1112,23 @@ int main(int argc, char **argv)
     exit(1);
   }
   free(fntmp);
+
   /* if we overwrite OTPW file, then any remaining lock is now meaningless */
+ unlock:
   fntmp = (char *) malloc(strlen(fnout)+strlen(otpw_locksuffix)+1);
   if (!fntmp) abort();
   strcpy(fntmp, fnout);
   strcat(fntmp, otpw_locksuffix);
-  unlink(fntmp);
+  if (unlink(fntmp)) {
+    if (errno != ENOENT) {
+      fprintf(stderr, "Can't delete lock file '%s", fntmp);
+      perror("'");
+      exit(1);
+    }
+  } else {
+    fprintf(stderr, "Deleted lock file '%s'\n", fntmp);
+  }
   free(fntmp);
-
+  
   return 0;
 }
