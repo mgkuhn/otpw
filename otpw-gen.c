@@ -617,7 +617,7 @@ int main(int argc, char **argv)
   /* read command line arguments */
   for (i = 1; i < argc && !help; i++) {
     if (argv[i][0] == '-')
-      for (j = 1; j > 0 && argv[i][j] != 0 && !help; j++)
+      for (j = 1; j > 0 && !help && argv[i][j] != 0; j++)
         switch (argv[i][j]) {
         case 'h':
 	  if (++i >= argc) { help = 1; break; }
