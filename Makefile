@@ -4,7 +4,7 @@
 # Markus Kuhn <http://www.cl.cam.ac.uk/~mgk25/>
 #
 
-VERSION=1.4
+VERSION=1.5
 
 CC=gcc
 CFLAGS=-O -ggdb -W -Wall -Wno-unused-result -fPIC

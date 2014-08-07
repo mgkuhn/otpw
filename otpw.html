@@ -18,7 +18,7 @@ password scheme allowing remote access from untrusted terminals.">
 Laboratory, University of Cambridge
 
 <P><A HREF="https://www.cl.cam.ac.uk/~mgk25/otpw.html">Latest release</A>:
-Version 1.3, 2003-09-30
+Version 1.5, 2014-08-07
 
 <H2 id="abstract">Abstract</H2>
 
@@ -33,7 +33,8 @@ reasonably secure user authentication over insecure network lines. The
 user carries a password list on paper. The scheme is designed to be
 robust against theft of the paper list and race-for-the-last-letter
 attacks. Cryptographic hash values of the one-time passwords are
-stored for verification in the user’s home directory.
+stored for verification, either in the user’s home directory or in
+a dedicated system directory.
 
 <H2 id="intro">Introduction</H2>
 
@@ -76,11 +77,14 @@ my functional and security requirements better.
 <H2 id="operation">How it works</H2>
 
 <P>One-time password authentication with the OTPW package is
-accomplished via a file <CITE>.otpw</CITE> located in the user’s home
-directory. No state is kept in any system-wide files, therefore OTPW
-does not introduce any new setuid root programs. As long as a user
-does not have <CITE>.otpw</CITE> in her home directory, the
-one-time-password facility has not been activated for her.
+accomplished via a file containing hash values of passwords. Depending
+on the installation option chosen, this can either be a
+file <CITE>~john/.otpw</CITE> located in the user’s home directory, or
+it can be a file <CITE>~otpw/john</CITE> in the home directory of a
+dedicated pseudo user “otpw”. In the latter case, the otpw-gen tool
+for generating new passwords must be owned by pseudo user “otpw” and
+have the SETUID bit set. As long as users do not have such a hash
+file, the one-time-password facility is not active for them.
 
 <P>A user who wants to setup the one-time-password capability just
 executes the <CITE>otpw-gen</CITE> program. The program will ask for a
@@ -235,20 +239,24 @@ password.
 <H2 id="install">Installation</H2>
 
 <P>Get the OTPW package <SAMP>otpw-*.*.tar.gz</SAMP> from <A
-HREF="http://www.cl.cam.ac.uk/~mgk25/download/">
-http://www.cl.cam.ac.uk/~mgk25/download/</A>.
+HREF="https://www.cl.cam.ac.uk/~mgk25/download/">
+https://www.cl.cam.ac.uk/~mgk25/download/</A> or use
+<pre>
+  git clone https://www.cl.cam.ac.uk/~mgk25/git/otpw
+</pre>
 
-<P>First have a look into <SAMP>conf.h</SAMP> where some system
-parameters can be changed. The only item there really worth being
-checked carefully is the <SAMP>ENTROPY_CMDS</SAMP> macro. It contains
-a list of shell commands, whose output is used to initialize the
-random number generator in <CITE>otpw-gen</CITE>. Make sure that at
-least most of these shell commands actually do work on your system and
-produce an output that is extremely difficult to predict for potential
-attackers. If your operating system has a <SAMP>/dev/random</SAMP> or
+<P>First have a look into <SAMP>otpw.c</SAMP>
+and <SAMP>otpw-gen.c</SAMP> where some system parameters can be
+changed. The only item there really worth being checked carefully is
+<SAMP>entropy_cmds</SAMP>. It contains a list of shell commands, whose
+output is used to initialize the random number generator
+in <CITE>otpw-gen</CITE>. Make sure that at least most of these shell
+commands actually do work on your system and produce an output that is
+extremely difficult to predict for potential attackers. If your
+operating system has a <SAMP>/dev/random</SAMP> or
 <SAMP>/dev/urandom</SAMP> device that gives access to a good true
 random number generator, then make sure that a command reads and
-outputs about 20 bytes from there. In <SAMP>ENTROPY_ENV</SAMP>, some
+outputs about 20 bytes from there. In <SAMP>entropy_env</SAMP>, some
 environment variables (e.g., <SAMP>PATH</SAMP>) can be set for these
 shell commands.
 
@@ -312,7 +320,7 @@ often do not work reliably over network file systems.
 PAM modules reside (under Linux usually <SAMP>/lib/security/</SAMP>).
 Then edit the PAM configuration file for the application in which you
 want to use OTPW, as described in your <A
-HREF="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam.html">PAM
+HREF="http://www.linux-pam.org/Linux-PAM-html/Linux-PAM_SAG.html">PAM
 System Administrators’ Guide</A>. The <CITE>pam_otpw.so</CITE>
 provides both an authentication and a session component. The
 authentication component asks for and verifies a one-time password,
@@ -326,17 +334,30 @@ Shell, you might have to add in <SAMP>/etc/pam.d/sshd</SAMP> the lines
   session         optional        pam_otpw.so
 </PRE>
 
-<P>With <SAMP>OpenSSH 3.4</SAMP> for example, you need to make sure
-that your version has PAM support compiled in, and you will have to
-add in <SAMP>/etc/ssh/sshd_config</SAMP> the lines
+<P>With <SAMP>OpenSSH 5.9p1</SAMP> for example, you need to make sure
+that it has PAM support compiled in, and you will need
+in <SAMP>/etc/ssh/sshd_config</SAMP> the lines
 <PRE>
-  UsePrivilegeSeparation          no
-  PAMAuthenticationViaKbdInt      yes
+  UsePrivilegeSeparation            no
+  UsePAM                            yes
+  ChallengeResponseAuthentication   yes
 </PRE>
 
 <P>To force OpenSSH to use PAM authentication (instead of its own
 hostbased or publickey methods, which it normally tries first), use
 “<SAMP>ssh -o PreferredAuthentications=keyboard-interactive</SAMP>”.
+
+<h3>Pseudo user setup</h3>
+
+<p>Starting with otpw-1.5, if you would like to keep the password hash
+files out of the reach of your users, you can create a pseudo user
+“otpw” (uid < 1000) and an associated home directory where the
+password files will be stored. On Ubuntu Linux, for example, the steps
+necessary for such a setup might be
+<pre>
+  $ adduser --system --gecos 'OTPW pseudouser' --home /var/lib/otpw otpw
+  $ chown otpw /usr/bin/otpw-gen && chmod u+s /usr/bin/otpw-gen
+</pre>
 
 <H2 id="rationale">Design rationale</H2>
 
@@ -421,7 +442,7 @@ Zhang, Piete Brooks and David Wheeler for useful suggestions.
 
 <LI id="opensshbug">The OTPW PAM module exposes a <a
 href="http://bugzilla.mindrot.org/show_bug.cgi?id=632">bug</a> in <a
-href="http://www.openssh.com/">OpenSSH</a> 3.6.1 (and possibly many
+href="http://www.openssh.com/">OpenSSH</a> 3.6.1–5.9 (and possibly many
 other versions) under Linux:
 
 <p><b>Observation:</b> If the ssh user aborts the keyboard-interactive
@@ -466,7 +487,7 @@ buffers with secrets.
 
 <p>OTPW – A one-time password login package
 
-<p>Copyright &#xa9; 1998–2003 Markus Kuhn
+<p>Copyright &#xa9; 1998–2014 Markus Kuhn
 
 <p>This program is free software; you can redistribute it and/or
 modify it under the terms of the <a
@@ -523,9 +544,9 @@ Bodies</A></CITE>, RFC 2045, November 1996.
 HREF="http://www.opengroup.org/pubs/catalog/p702.htm">X/Open Single
 Sign-On Service (XSSO) – Pluggable Authentication</A>. June 1997.
 
-<P><A HREF= "http://www.cl.cam.ac.uk/~mgk25/">Markus Kuhn</A>
+<P><A HREF= "https://www.cl.cam.ac.uk/~mgk25/">Markus Kuhn</A>
 <p class=footdate>created 1997-11-25 –
 last modified 2014-08-07 –
-http://www.cl.cam.ac.uk/~mgk25/otpw.html
+https://www.cl.cam.ac.uk/~mgk25/otpw.html
 </BODY>
 </HTML>

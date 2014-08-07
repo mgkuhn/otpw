@@ -771,7 +771,7 @@ int main(int argc, char **argv)
 
   if (help) {
     /* Print brief usage instructions, then abort */
-    fprintf(stderr, "One-Time Password Generator v 1.4 -- Markus Kuhn\n\n");
+    fprintf(stderr, "One-Time Password Generator v 1.5 -- Markus Kuhn\n\n");
     fprintf(stderr, "%s [options]\n\n", argv[0]);
     fprintf
       (stderr, "Options: (default or current value in parenthesis)\n\n"
